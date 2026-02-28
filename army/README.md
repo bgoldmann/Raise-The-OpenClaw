@@ -28,6 +28,18 @@ ARMY_AUTH_BEARER=secret ARMY_METRICS=1 node army/server.js 4080
 | `ARMY_AUTH_BEARER` | If set, all `/army/*` requests require `Authorization: Bearer <token>`. |
 | `ARMY_REGISTRY_TTL_SEC` | Mark nodes offline after N seconds without heartbeat (default 600). Background job runs every 60s. |
 | `ARMY_METRICS` | Set to `0` to disable `GET /metrics`. |
+| `ARMY_LEARNING` | Set to `0` to disable the roles learning hook (lessons written to mesh memory on report_up). Default: enabled. |
+
+## Roles learning (learn from mistakes, upgrade skills)
+
+When an order is **completed**, **failed**, or **refused** (PATCH with `status` + `result`/`error`), the server writes a **lesson** to mesh memory so roles can avoid repeating the same mistakes. Design: [OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md](OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md).
+
+- **Per order:** After each report_up the server appends a lesson to:
+  - `node` scope, key `<target_node_id>:lessons` (last 50)
+  - `mesh` scope, key `lessons_by_role:<role>` (last 50; role from registry skill or rank)
+- **Daily aggregation:** Run `node scripts/lessons-daily.js` (e.g. via cron) with `MESH_STORE_DB_PATH` set. It reads `lessons_by_role:*` from the last 24 hours, writes a summary to mesh memory key `lessons_daily:YYYY-MM-DD` and optionally to a mesh skill `lessons-daily-YYYY-MM-DD`. Set `LESSONS_DAILY_SKILL=0` to skip writing the skill.
+
+Agents should read `lessons_by_role:<their role>` (or their node's lessons key) before executing orders; see SOUL §1.1 in [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md).
 
 ## API
 
@@ -62,5 +74,6 @@ ARMY_AUTH_BEARER=secret ARMY_METRICS=1 node army/server.js 4080
 ## References
 
 - [OPENCLAW_ARMY_OF_OPENCLAW.md](OPENCLAW_ARMY_OF_OPENCLAW.md) — Design: ranks, units, orders, registry, dispatcher, resilience.
-- [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md) — SOUL prompts per rank.
+- [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md) — SOUL prompts per rank; §1.1 Learning and improvement.
+- [OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md](OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md) — Roles learning from mistakes; daily skill upgrade.
 - [mesh/store/README.md](mesh/store/README.md) — Shared store and schema (army tables live in same DB).

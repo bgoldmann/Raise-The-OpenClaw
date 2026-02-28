@@ -95,7 +95,7 @@ flowchart LR
 - **Role / MOS** (capability): What this node can do — from existing **skill descriptors** ([OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md](OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md) §2.4, Option D). E.g. `skills: ["research", "triage", "coding"]`. Used for **task routing**: “Send research task → any node with skill research and capacity.”
 - **Unit assignment:** Each gateway (and optionally agent) has `unit`, `platoon`, `theater`. Orders can be addressed to `unit: "squad-2"` or `role: "research"` or `gatewayId: "sec"`.
 
-No change to OpenClaw agent model; ranks and units are **metadata** in the registry and in SOUL/context as needed.
+No change to OpenClaw agent model; ranks and units are **metadata** in the registry and in SOUL/context as needed. **Learning and skill upgrade:** Roles can learn from mistakes and upgrade skills over time (lessons from order outcomes, mesh memory, daily aggregation); see [OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md](OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md).
 
 ### 3.2 Skills and tools by rank
 
@@ -250,6 +250,7 @@ Data source: registry API + dispatcher API (or store where dispatcher writes ord
 | [OPENCLAW_MAC_MINI_CEO_PROMPTS.md](OPENCLAW_MAC_MINI_CEO_PROMPTS.md) | CEO → Sec delegation, bridge, task flow. |
 | [OPENCLAW_MESH_FEDERATION_HUB.md](OPENCLAW_MESH_FEDERATION_HUB.md) | Federation hub; theater = mesh. |
 | [OPENCLAW_MISSION_CONTROL_DASHBOARD.md](OPENCLAW_MISSION_CONTROL_DASHBOARD.md) | Mission Control; command post extensions. |
+| [OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md](OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md) | Roles learning from mistakes and continuous skill upgrade (every order, every day). |
 
 ---
 

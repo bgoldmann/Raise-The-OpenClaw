@@ -24,10 +24,12 @@ const http = require('http');
 const https = require('https');
 const path = require('path');
 const { openStore } = require(path.join(__dirname, '..', 'mesh', 'store', 'client.js'));
+const { writeLesson } = require(path.join(__dirname, 'lessons.js'));
 
 const PORT = parseInt(process.env.PORT || process.env.ARMY_PORT || process.argv[2] || '4080', 10);
 const DB_PATH = process.env.MESH_STORE_DB_PATH || null;
 const AUTH_BEARER = process.env.ARMY_AUTH_BEARER || null;
+const LEARNING_ENABLED = process.env.ARMY_LEARNING !== '0';
 const RANKS_ALLOWED_ISSUE = ['general', 'colonel', 'captain'];
 const REGISTRY_TTL_SEC = parseInt(process.env.ARMY_REGISTRY_TTL_SEC || '600', 10); // 10 min → mark stale
 const METRICS_ENABLED = process.env.ARMY_METRICS !== '0';
@@ -344,6 +346,13 @@ const server = http.createServer(async (req, res) => {
     }
     if (body.status === 'completed' && METRICS_ENABLED) metrics.ordersCompleted++;
     if (body.status === 'failed' && METRICS_ENABLED) metrics.ordersFailed++;
+    if (LEARNING_ENABLED && (body.status === 'completed' || body.status === 'failed' || body.status === 'refused')) {
+      try {
+        writeLesson(store, updated);
+      } catch (e) {
+        console.error('Army learning hook error:', e.message);
+      }
+    }
     send(res, 200, updated);
     return;
   }

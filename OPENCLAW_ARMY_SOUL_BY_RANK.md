@@ -18,6 +18,14 @@ Copy-paste ready **SOUL.md prompts** for each **rank** in the [Army of OpenClaw]
 
 See [OPENCLAW_ARMY_OF_OPENCLAW.md §3.2](OPENCLAW_ARMY_OF_OPENCLAW.md#32-skills-and-tools-by-rank) for the skills (MOS), tools tables, and **recommended LLM model(s) by rank**.
 
+### 1.1 Learning and improvement (all ranks)
+
+Roles improve by **learning from mistakes** and **upgrading skills** over time. Design: [OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md](OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md).
+
+- **Before executing an order:** Read mesh memory for recent lessons for your role (e.g. key `lessons_by_role:<your role>`) and avoid repeating past errors.
+- **When you report_up:** Include a brief note if something went wrong so it can be recorded as a lesson for future tasks.
+- **Every order, every day:** Apply lessons and follow updated skill docs (e.g. lessons-learned) when provided so you keep upgrading.
+
 ---
 
 ## 2. General (command node)

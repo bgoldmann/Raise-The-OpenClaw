@@ -4,6 +4,11 @@ All notable changes to the Raise The OpenClaw project are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Roles: learning from mistakes and continuous skill upgrade** — [OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md](OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md): design for roles that learn from order outcomes (result/error/refused) and upgrade skills every order and every day. Lessons stored in mesh memory (e.g. `node:<id>:lessons`, `lessons_by_role:<role>`); SOUL reads lessons before executing; optional daily aggregation into skill docs. References added in OPENCLAW_ARMY_OF_OPENCLAW.md, OPENCLAW_ARMY_SOUL_BY_RANK.md (§1.1 Learning and improvement), and README.
+- **Implementation: roles learning** — **army/lessons.js**: `writeLesson(store, order)` appends a lesson (orderId, nodeId, role, outcome, summary, ts) to mesh memory keys `node:<nodeId>:lessons` and `lessons_by_role:<role>` (max 50 per key). **Army server**: after PATCH /army/orders/:id with status completed/failed/refused, calls writeLesson; disable with `ARMY_LEARNING=0`. **scripts/lessons-daily.js**: aggregates lessons from mesh `lessons_by_role:*` in the last 24h, writes `lessons_daily:YYYY-MM-DD` to mesh memory and optionally mesh skill `lessons-daily-YYYY-MM-DD`; run with `MESH_STORE_DB_PATH` set (e.g. cron). **package.json**: `run:lessons-daily` script. army/README.md: env `ARMY_LEARNING`, "Roles learning" section, and daily script usage. Test: army-server PATCH test asserts lesson written to mesh memory.
+
 ### Changed
 
 - **README.md** — Rewritten for clarity and accuracy: new “What this repo is” and “Quick start” table, simplified architecture diagram (includes Army and Federation Hub), consolidated “What’s in the repo” and reference implementations, documentation table trimmed and reordered, changelog link fixed to CHANGELOG.md.

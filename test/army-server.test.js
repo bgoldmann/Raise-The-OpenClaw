@@ -158,7 +158,7 @@ describe('Army server', () => {
     assert.ok(orders.some((o) => o.order_id === created.orderId));
   });
 
-  it('PATCH /army/orders/:orderId (report_up)', async function () {
+  it('PATCH /army/orders/:orderId (report_up) and roles learning hook', async function () {
     if (!storeAvailable) return this.skip();
     const orderBody = { addressee: 'sec', payload: 'Report-up test', priority: 'low' };
     const postRes = await fetch(baseUrl + '/army/orders', {
@@ -178,6 +178,19 @@ describe('Army server', () => {
     const updated = await patchRes.json();
     assert.strictEqual(updated.status, 'completed');
     assert.strictEqual(updated.result, 'Done');
+
+    const { openStore } = require(path.join(REPO_ROOT, 'mesh', 'store', 'client.js'));
+    const testStore = openStore(tempDbPath);
+    if (testStore) {
+      const byRole = testStore.getMemory('mesh', 'lessons_by_role:unknown');
+      const byNode = testStore.getMemory('node', (updated.target_node_id || 'unknown') + ':lessons');
+      const list = byRole?.value || byNode?.value;
+      assert.ok(Array.isArray(list), 'learning hook should write lessons to mesh memory');
+      const lesson = list.find((l) => l.orderId === orderId);
+      assert.ok(lesson, 'lesson should exist for this order');
+      assert.strictEqual(lesson.outcome, 'completed');
+      assert.ok(lesson.summary.includes('Done') || lesson.summary === 'Completed.');
+    }
   });
 
   it('GET /metrics returns Prometheus-style counters', async function () {

@@ -80,7 +80,7 @@ flowchart LR
 | **Bridge** | Wire mesh into Telegram/Discord or any webhook: `handleBridgeMessage()` adapter and small webhook server. Optional API key/Bearer auth, `/metrics`, `/health`, `BRIDGE_MAX_BODY_SIZE`. |
 | **Mission Control** | Single-page dashboard for multiple gateways: live WebSocket (or one via proxy), overview cards, gateways table, stats, Working/Tasks/Jobs/Approvals/Activity, Army Command Post when configured, export (CSV/JSON), customizable panels. Design doc + `mission-control/` SPA + `mission-control/proxy/`. |
 | **Federation Hub** | Connect your mesh to other meshes: `POST /federation/in`, `POST /federation/share`, outbound (poll store → POST to external), store-to-bridge, optional Ed25519 signing, `/metrics`. `federation-hub/` + design docs. |
-| **Army of OpenClaw** | US Army–style hierarchy: registry (nodes by rank/unit/skill), orders, dispatcher (sends orders to ingest URLs, failover). Mission Control “Army — Command Post”: unit view, roster, orders queue, issue order. `army/server.js`, SOUL by rank, strategies. |
+| **Army of OpenClaw** | US Army–style hierarchy: registry (nodes by rank/unit/skill), orders, dispatcher (sends orders to ingest URLs, failover). Mission Control “Army — Command Post”: unit view, roster, orders queue, issue order. `army/server.js`, SOUL by rank, strategies. **Roles learning & skill upgrade:** Roles learn from mistakes and upgrade skills every order and every day (lessons in mesh memory, daily aggregation); see [OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md](OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md). |
 | **CEO + Sec** | Mac Mini (CEO) and Synology (Sec): SOUL prompts, bindings, CEO→Sec delegation over bridge. NAS + hardware notes. |
 | **Operational** | Runbooks, enterprise security, observability, deployment (Docker, K8s), message signing, multi-tenancy, rate limiting. |
 
@@ -97,7 +97,7 @@ flowchart LR
 | **[army/server.js](army/server.js)** | Registry (POST/GET/PATCH nodes, GET units), dispatcher (POST orders, resolve addressee, POST to ingest_url, failover). Optional `ARMY_AUTH_BEARER`, `ARMY_REGISTRY_TTL_SEC`, `GET /metrics`. Mission Control shows Army when proxy has `OPENCLAW_MC_ARMY_URL`. |
 | **[scripts/mesh-cli.js](scripts/mesh-cli.js)** | CLI: get/put/list memory and skills (local cache or `MESH_STORE_URL`). |
 
-**Run:** Node.js 18+; no extra deps for mesh/bridge. Proxy uses `ws`. Optional `better-sqlite3` for mesh store and Army. From repo root: `npm test`, `npm run serve:mc`, `npm run run:bridge`, `npm run run:mesh-cli`.
+**Run:** Node.js 18+; no extra deps for mesh/bridge. Proxy uses `ws`. Optional `better-sqlite3` for mesh store and Army. From repo root: `npm test`, `npm run serve:mc`, `npm run run:bridge`, `npm run run:mesh-cli`, `npm run run:lessons-daily` (daily lessons aggregation; set `MESH_STORE_DB_PATH`).
 
 ---
 
@@ -119,6 +119,7 @@ flowchart LR
 | [Army of OpenClaw](OPENCLAW_ARMY_OF_OPENCLAW.md) | Chain of command, ranks/units, orders, registry, dispatcher. |
 | [Army strategies](OPENCLAW_ARMY_STRATEGIES.md) | Order strategies (research, default, attack). |
 | [Army SOUL by rank](OPENCLAW_ARMY_SOUL_BY_RANK.md) | Copy-paste SOUL per rank (General → Specialist). |
+| [Roles: learning & skill upgrade](OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md) | Roles learn from mistakes; upgrade skills every order and every day. |
 | [Enterprise security](ENTERPRISE_SECURITY.md) | Proxy, bridge auth, TLS, store access. |
 | [Observability](OBSERVABILITY.md) | Logging, metrics, health, audit. |
 | [Deployment](DEPLOYMENT.md) | Docker Compose, Kubernetes, single-host. |

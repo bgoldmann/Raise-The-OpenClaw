@@ -16,39 +16,48 @@ Design for **passing memory (intel/logistics) to the Federation Hub** via the sh
 
 ## 2. Target flow
 
+**Path A — Share endpoint:** Command/Colonel → `POST /federation/share` → hub forwards to bridge, optionally writes to store, optionally sends to external meshes (immediate or via poll).
+
+**Path B — Store:** Caller → `PUT /mesh/memory` (store API) → store. Hub polls store for outbound (→ external meshes) and for store-to-bridge (→ internal bridge).
+
 ```mermaid
-flowchart LR
-  subgraph push [Push sources]
+flowchart TB
+  subgraph PushSources [Push sources]
     Cmd[Command / Colonel]
     StoreWrite[Store API PUT]
   end
-  subgraph hub [Federation Hub]
+  subgraph Hub [Federation Hub]
     ShareEP["POST /federation/share"]
     StoreRead[Read store]
+    StoreToBridge[Store-to-bridge fan-out]
     ToBridge[Forward to bridge]
     ToStore[Write store]
     Outbound[Outbound to external]
   end
-  subgraph internal [Internal mesh]
+  subgraph InternalMesh [Internal mesh]
     Bridge[Bridge ingest]
     Store[Shared store]
     Nodes[CEO, Sec, squads]
   end
-  subgraph external [External meshes]
-    EM[Other meshes]
+  subgraph ExternalMeshes [External meshes]
+    EM1[Other mesh A]
+    EM2[Other mesh B]
   end
   Cmd -->|"Bearer + rank check"| ShareEP
   StoreWrite --> Store
-  ShareEP --> ToStore
   ShareEP --> ToBridge
-  ShareEP --> Outbound
-  StoreRead --> Outbound
+  ShareEP --> ToStore
+  ShareEP -.->|"optional immediate"| Outbound
   ToStore --> Store
   ToBridge --> Bridge
-  Store -.->|"poll (existing)"| StoreRead
+  Store -.->|"poll"| StoreRead
+  StoreRead --> Outbound
+  StoreRead --> StoreToBridge
+  StoreToBridge --> Bridge
   Bridge --> Nodes
   Store --> Nodes
-  Outbound --> EM
+  Outbound --> EM1
+  Outbound --> EM2
 ```
 
 ---

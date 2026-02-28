@@ -13,6 +13,7 @@ All notable changes to the Raise The OpenClaw project are documented here.
 - **OPENCLAW_MESH_FEDERATION_HUB.md** — New §3.4 Intel share (internal) with link to OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md; References table updated.
 - **OPENCLAW_ARMY_OF_OPENCLAW.md** — §1 Logistics/intel: memory can be pushed via hub (store or share), rank/unit/theater control push and receive; §9 References: link to OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md.
 - **README.md** — Reference implementations: federation-hub (share endpoint, store-to-bridge). Documentation table: added [Federation hub intel share](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md).
+- **Diagrams redesigned** — OPENCLAW_MESH_FEDERATION_HUB.md §2 Topology: single diagram now shows internal push sources (Command, Store API), hub with `POST /federation/in`, `POST /federation/share`, store read, store-to-bridge fan-out, forward to bridge, write to store, outbound; external inbound from other meshes. OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md §2 Target flow: diagram updated with store-to-bridge fan-out, Path A (share endpoint) and Path B (store) described; nodes use camelCase IDs and clear edges (poll, optional immediate outbound).
 
 ### Added (Army of OpenClaw — design)
 

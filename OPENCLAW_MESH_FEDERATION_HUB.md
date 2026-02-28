@@ -19,32 +19,56 @@ No change to CEO/Sec or OpenClaw gateway protocol; the hub is an additive “gat
 ## 2. Topology
 
 ```mermaid
-flowchart LR
+flowchart TB
+  subgraph PushSources [Internal push sources]
+    Command[Command / Colonel]
+    StoreAPI[Store API PUT]
+  end
+  subgraph Hub [Federation Hub]
+    FedIn["POST /federation/in"]
+    ShareEP["POST /federation/share"]
+    StoreRead[Read store]
+    StoreToBridge[Store-to-bridge]
+    ToBridge[Forward to bridge]
+    ToStore[Write store]
+    Outbound[Outbound to external]
+  end
   subgraph InternalMesh [Your mesh - same network]
+    Bridge[Bridge ingest]
+    SharedStore[Shared Store]
     CEO_GW[CEO Gateway]
     Sec_GW[Sec Gateway]
-    Bridge[Bridge Channel]
-    SharedStore[Shared Store]
     CEO_GW --> Bridge
     Bridge --> Sec_GW
     CEO_GW -.-> SharedStore
     Sec_GW -.-> SharedStore
   end
-  subgraph Hub [Federation Hub]
-    FH[Hub Process]
-  end
   subgraph ExternalMeshes [External meshes]
     EM1[Other mesh A]
     EM2[Other mesh B]
   end
-  Bridge -.->|"subscribe / inject"| FH
-  SharedStore -.->|"read / write"| FH
-  FH <-->|"filtered + optional signing"| EM1
-  FH <-->|"filtered + optional signing"| EM2
+  Command -->|"Bearer + rank"| ShareEP
+  StoreAPI --> SharedStore
+  ShareEP --> ToBridge
+  ShareEP --> ToStore
+  ShareEP --> Outbound
+  ToStore --> SharedStore
+  ToBridge --> Bridge
+  SharedStore -.->|"poll"| StoreRead
+  StoreRead --> Outbound
+  StoreRead --> StoreToBridge
+  StoreToBridge --> Bridge
+  EM1 -.->|"inbound"| FedIn
+  EM2 -.->|"inbound"| FedIn
+  FedIn --> ToBridge
+  FedIn -.-> ToStore
+  Outbound -->|"filtered + signing"| EM1
+  Outbound -->|"filtered + signing"| EM2
 ```
 
-- **Solid lines:** Existing (bridge, store).
-- **Dotted:** Federation hub subscribes to or reads from your bridge/store and injects/writes back; it exchanges **filtered** memory/skill (and optionally sync) messages with external mesh endpoints.
+- **Internal push sources:** Command (or Colonel) calls `POST /federation/share` with Bearer auth; other callers can `PUT` to the store API. Rank/unit/theater control who may push (see [OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md)).
+- **Federation Hub:** `POST /federation/in` — external meshes push in (provenance, then forward to bridge/store). `POST /federation/share` — internal intel share: forward to bridge, optionally write to store, optionally send to external. **Store read:** hub polls store for outbound and (when configured) for **store-to-bridge** fan-out to the internal mesh.
+- **Solid:** Primary flows. **Dotted:** Optional or secondary (store poll, store write from inbound).
 
 ---
 

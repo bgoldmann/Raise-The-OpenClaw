@@ -58,8 +58,25 @@ Use for load balancer health checks and alerting.
 
 ---
 
-## 5. Alerting
+## 5. Army (registry and dispatcher)
+
+When the [Army server](army/README.md) is running, set `ARMY_METRICS=1` (default) to expose:
+
+- **GET /metrics** — Prometheus-style text:
+  - `army_orders_total` — total orders submitted.
+  - `army_orders_failed` — orders that ended in failed state.
+  - `army_orders_completed` — orders marked completed (via PATCH report_up).
+  - `army_registry_nodes` — current number of nodes in the registry (gauge).
+  - `army_dispatcher_queue_depth` — count of pending + in_progress orders (gauge).
+  - `army_dispatch_errors` — delivery errors (ingest timeout or non-2xx).
+
+Set `ARMY_METRICS=0` to disable. Use for capacity planning and alerting (e.g. alert when `army_orders_failed` increases or `army_registry_nodes` drops).
+
+---
+
+## 6. Alerting
 
 - Alert on `bridge_ingest_errors` or `bridge_bridge_errors` increase.
 - Alert on **GET /health** returning non-200 or `cacheWritable: false`.
 - Alert on Mission Control proxy **GET /health** non-200.
+- Alert on Army `army_orders_failed` spike or `army_registry_nodes` below threshold when Army is in use.

@@ -63,7 +63,7 @@ flowchart LR
 **Short path:**
 
 1. **Prerequisites** — Node.js (v18+), Git, a browser. OpenClaw is optional until you connect real gateways.
-2. **Clone** — `git clone https://github.com/YOUR_USERNAME/RaiseTheOpenClaw.git && cd RaiseTheOpenClaw`
+2. **Clone** — `git clone https://github.com/bgoldmann/Raise-The-OpenClaw.git && cd Raise-The-OpenClaw` (or use your fork’s URL)
 3. **Mission Control (no install)** — Open `mission-control/index.html` in a browser, or run `npx serve mission-control` and open http://localhost:3000.
 4. **Mesh + bridge (optional)** — No `npm install` for mesh/bridge. Run `node bridge/webhook-server.js 4077` to accept POSTs; or call `handleBridgeMessage(payload, { unwrap: 'telegram' })` from your bot. Cache lives under `~/.openclaw/` (or `OPENCLAW_HOME`).
 5. **CEO + Sec (optional)** — Install OpenClaw on both nodes, use [CEO + Sec prompts](OPENCLAW_MAC_MINI_CEO_PROMPTS.md) and a shared bridge channel or webhook; wire mesh ingest as in step 4.

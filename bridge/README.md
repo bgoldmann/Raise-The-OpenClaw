@@ -49,6 +49,7 @@ node bridge/webhook-server.js 4077
 # Or: BRIDGE_AUTH_BEARER=your-token node bridge/webhook-server.js 4077
 # Or: PORT=4077 MESH_NODE_ID=sec node bridge/webhook-server.js
 # Optional rate limit: BRIDGE_RATE_LIMIT_PER_MIN=60 (429 when exceeded per IP or auth key)
+# Optional body size limit (DoS): BRIDGE_MAX_BODY_SIZE=1048576 (1MB); 413 when exceeded
 ```
 
 Then:

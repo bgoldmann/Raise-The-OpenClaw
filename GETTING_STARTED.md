@@ -18,11 +18,11 @@ Step-by-step setup for **Raise The OpenClaw**: clone, run the dashboard, and opt
 ## 2. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/RaiseTheOpenClaw.git
-cd RaiseTheOpenClaw
+git clone https://github.com/bgoldmann/Raise-The-OpenClaw.git
+cd Raise-The-OpenClaw
 ```
 
-(Replace `YOUR_USERNAME` with your GitHub username or org.)
+Canonical repo: [github.com/bgoldmann/Raise-The-OpenClaw](https://github.com/bgoldmann/Raise-The-OpenClaw). Use your fork’s URL if you cloned from a fork.
 
 ---
 
@@ -119,6 +119,23 @@ const summary = sync.buildSummary('ceo', process.env.OPENCLAW_HOME, { includeHas
 console.log(JSON.stringify(summary, null, 2));
 "
 ```
+
+---
+
+## 6b. Army quick start (optional)
+
+If you use the **Army of OpenClaw** (chain of command, orders, registry, dispatcher):
+
+1. **Store:** Use the same SQLite store as Phase 2 (section 5). The Army creates `army_registry` and `army_orders` tables in that DB.
+2. **Run the Army server:**  
+   `MESH_STORE_DB_PATH=/path/to/mesh-store.sqlite node army/server.js 4080`  
+   See [army/README.md](army/README.md).
+3. **Register one Squad:** e.g. a gateway that runs the bridge webhook:  
+   `curl -X POST http://localhost:4080/army/register -H "Content-Type: application/json" -d '{"gateway_id":"sec","rank":"sergeant","unit":"squad-1","skills":["squad_lead","report_up"],"ingest_url":"http://localhost:4077/ingest"}'`
+4. **Mission Control:** Run the proxy with `OPENCLAW_MC_ARMY_URL=http://localhost:4080`. Open the dashboard; the **Army — Command Post** section shows Unit view, Roster, Orders queue, and **Issue order**. Submit an order (addressee `sec`, payload "Ping") and check the Orders queue.
+5. **Command (General):** To issue orders from a gateway, configure the **issue_order** tool to POST to `http://localhost:4080/army/orders`. See [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md).
+
+Runbooks: [Add a node to the Army](docs/RUNBOOKS.md#add-a-node-to-the-army), [Issue first order](docs/RUNBOOKS.md#issue-first-order).
 
 ---
 

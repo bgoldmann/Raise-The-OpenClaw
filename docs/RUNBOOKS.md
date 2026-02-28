@@ -95,3 +95,31 @@ See [mesh/store/README.md](../mesh/store/README.md) and [mesh/store/access-model
 
 - **New internal bridge URL:** Update `internal.bridgeWebhookUrl` in the hub config and restart the hub. Inbound traffic will be forwarded to the new URL.
 - **New store URL:** Update `internal.storeApiUrl` and optionally `internal.storeAuth`. Restart the hub so outbound polling uses the new store.
+
+---
+
+## Add a node to the Army
+
+1. Ensure the Army server is running and uses the same store as the mesh (e.g. `MESH_STORE_DB_PATH=/path/to/mesh-store.sqlite`). See [army/README.md](../army/README.md).
+2. Register the gateway (or agent) with the registry:
+   - **Option A — Manual:** `curl -X POST http://localhost:4080/army/register -H "Content-Type: application/json" -d '{"gateway_id":"sec","rank":"sergeant","unit":"squad-1","skills":["squad_lead","delegate","report_up"],"ingest_url":"http://sec-host:4077/ingest"}'`. Use the bridge webhook URL for this node as `ingest_url` so the dispatcher can send orders to it.
+   - **Option B — From config:** Populate the registry from Mission Control gateway list plus rank/unit/skills (e.g. a one-time script that POSTs to `/army/register` for each gateway).
+3. Set **rank**, **unit**, **platoon**, **theater**, and **skills** (MOS) per [OPENCLAW_ARMY_OF_OPENCLAW.md](../OPENCLAW_ARMY_OF_OPENCLAW.md) and [OPENCLAW_ARMY_SOUL_BY_RANK.md](../OPENCLAW_ARMY_SOUL_BY_RANK.md).
+4. Ensure the node’s **bridge ingest** (or webhook) is reachable at `ingest_url` so the dispatcher can POST orders. If using Army auth, include `Authorization: Bearer <token>` when calling the Army API.
+
+---
+
+## Issue first order
+
+1. Ensure at least one **Squad** (gateway) is registered in the Army with a valid `ingest_url` (see **Add a node to the Army**).
+2. Ensure the **Command** (General) gateway has the **issue_order** tool configured to POST to the Army server (e.g. `http://localhost:4080/army/orders`). See [OPENCLAW_ARMY_SOUL_BY_RANK.md](../OPENCLAW_ARMY_SOUL_BY_RANK.md) (General tools).
+3. From **Mission Control** (proxy mode with `OPENCLAW_MC_ARMY_URL` set): open the **Army — Command Post** section, fill **Issue Order** (addressee = gateway id or `{"role":"research"}`, payload = task text), and submit. Or from the command line: `curl -X POST http://localhost:4080/army/orders -H "Content-Type: application/json" -d '{"addressee":"sec","payload":"Run a quick health check","priority":"normal"}'`.
+4. Check **Orders queue** in Mission Control: the order should appear as **in_progress** (or **failed** if the target was unreachable). The target node will receive the order as a mesh memory message (key `army.order.<orderId>`) and can execute and report up via `PATCH /army/orders/:orderId` with `status: "completed"` and `result`.
+
+---
+
+## Recover from dispatcher / registry failure
+
+- **Dispatcher (Army server) down:** Restart the Army server: `MESH_STORE_DB_PATH=/path/to/mesh-store.sqlite node army/server.js 4080`. Pending orders remain in the store; no automatic retry of delivery. To retry a failed order, re-issue a new order with the same payload (or implement a replay that POSTs to `/army/orders` with a new orderId).
+- **Registry lost or corrupted:** The registry is stored in the same SQLite DB as the mesh store (`army_registry` table). Restore from a backup of that DB file. If no backup, re-register all nodes via `POST /army/register` (see **Add a node to the Army**).
+- **Dead-letter (failed orders):** List failed orders with `GET /army/orders?status=failed`. Review and either fix the target (e.g. correct `ingest_url`, bring node back) and re-issue, or leave as failed for audit.

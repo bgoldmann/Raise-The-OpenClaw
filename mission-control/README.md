@@ -2,6 +2,8 @@
 
 Reference implementation of the [Mission Control Dashboard](../OPENCLAW_MISSION_CONTROL_DASHBOARD.md) design. A single-page app that aggregates multiple OpenClaw gateways in one pane-of-glass.
 
+**Single-file SPA:** The dashboard is intentionally one HTML file (HTML + CSS + JS in `index.html`) so you can open it directly in a browser or serve it with any static server—no build step. Section comments in the script mark Overview, Table, Detail, Army, and Modals for easier maintenance.
+
 ## Run
 
 **Standalone (direct connect):** Open `index.html` in a browser or serve it:

@@ -39,6 +39,8 @@ Add `gateways.json` to `.gitignore` so tokens are not committed.
 
 **Optional — Federation hub (Mesh & Federation panel):** Set `OPENCLAW_MC_FEDERATION_HUB_URL` to the hub base URL (e.g. `http://localhost:4080`). The dashboard will show "Mesh & Federation" with hub status when in proxy mode.
 
+**Optional — Army (Command Post panel):** Set `OPENCLAW_MC_ARMY_URL` to the Army server base URL (e.g. `http://localhost:4080`). The dashboard will show "Army — Command Post" with Unit view, Roster, Orders queue, and Issue order form. Requests to `/api/army/*` are proxied to the Army server.
+
 ## Endpoints
 
 | Path | Description |
@@ -47,6 +49,7 @@ Add `gateways.json` to `.gitignore` so tokens are not committed.
 | `GET /ws` | WebSocket — connect for live gateway data (client receives `{ gatewayId, ...frame }`) |
 | `GET /api/gateways` | List gateways (no tokens) — used by dashboard to detect proxy mode |
 | `GET /api/federation/health` | Federation hub health (when `OPENCLAW_MC_FEDERATION_HUB_URL` is set); 404 if not configured |
+| `GET /api/army/*`, `POST /api/army/*`, `PATCH /api/army/*` | Proxied to Army server (when `OPENCLAW_MC_ARMY_URL` is set) |
 | `GET /health` | Health check |
 
 ## Security

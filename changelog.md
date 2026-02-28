@@ -4,6 +4,18 @@ All notable changes to the Raise The OpenClaw project are documented here.
 
 ## [Unreleased]
 
+### Added (Improvement plan: security, tests, docs, robustness)
+
+- **Security (Mission Control)** — All user- and gateway-sourced strings are escaped with `escapeHtml()` in overview cards, gateways table, detail sidebar, Working/Tasks/Jobs/Against/Approvals/Activity panels, and Army section. Control UI URLs are validated with `safeHttpUrl()` (http/https only) before use in links; `rel="noopener noreferrer"` on external links.
+- **Tests** — Node built-in test runner: `test/mesh-messages.test.js` (create/validate/parse memory and skill messages, mesh request/response), `test/mesh-cache.test.js` (memory and skills read/write/ingest with temp dir), `test/bridge-ingest.test.js` (ingestFromBridge, handleBridgeMessage, unwrap telegram, handleRequest), `test/proxy-health.test.js` (Mission Control proxy GET /health and GET /api/gateways). Run with `npm test` or `node --test test/`.
+- **Root package.json** — Scripts: `test`, `serve:mc`, `run:bridge`, `run:mesh-cli`; engines Node >=18.
+- **Bridge** — Optional `BRIDGE_MAX_BODY_SIZE` (bytes): POST /ingest and /bridge return 413 Payload Too Large when body exceeds limit; Content-Length checked first, then streamed body. [bridge/README.md](bridge/README.md) and webhook-server.js header updated.
+
+### Changed (Improvement plan: docs, maintainability, robustness)
+
+- **Docs** — PRD_EXPANSION.md changelog link unified to `changelog.md` (lowercase). README and GETTING_STARTED clone URL set to canonical repo `https://github.com/bgoldmann/Raise-The-OpenClaw.git` with note for forks.
+- **Mission Control** — Single-file SPA documented in [mission-control/README.md](mission-control/README.md); section comments added in index.html (Config and state, WebSocket, Render: stats/overview/table/detail/Army, Modals, Init). Error visibility: `catch (_)` replaced with `console.error`/`console.warn` for proxy check, federation health, Army nodes/orders fetch, and issue-order JSON parse.
+
 ### Added (LLM model rankings per rank and per node)
 
 - **OPENCLAW_ARMY_OF_OPENCLAW.md** — §3.2: table "Recommended LLM model(s) by rank" and paragraph on quality/cost and SOUL alignment; §5: registry row field `model_ranking` (optional array of model ids). Per-node `model_ranking` overrides rank default when set.

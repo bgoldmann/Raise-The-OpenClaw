@@ -1234,6 +1234,7 @@
   </div>
 
   <script>
+    // --- Config and state ---
     const DEFAULT_GATEWAYS = [
       { id: 'ceo', name: 'CEO (Mac Mini)', wsUrl: 'ws://mac-mini.local:18789', controlUiUrl: 'http://127.0.0.1:18789', status: 'disconnected', agents: 0, sessions: 0, channels: 0 },
       { id: 'sec', name: 'Sec (Synology)', wsUrl: 'ws://192.168.1.60:18789', controlUiUrl: 'http://192.168.1.60:18789', status: 'disconnected', agents: 0, sessions: 0, channels: 0 },
@@ -1251,7 +1252,9 @@
     function nextId() { return 'mc-' + Math.random().toString(36).slice(2, 11); }
     function nowTime() { const d = new Date(); return d.toTimeString().slice(0, 5); }
     function escapeHtml(s) { if (s == null) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function safeHttpUrl(s) { if (!s || typeof s !== 'string') return null; const t = s.trim(); return /^https?:\/\//i.test(t) ? t : null; }
 
+    // --- WebSocket: connect to gateways or proxy ---
     function connectGateway(gw) {
       if (proxyMode) return;
       if (!gw.wsUrl || wsConnections[gw.id]) return;
@@ -1440,6 +1443,7 @@
       return Object.entries(LIVE_BY_GATEWAY).flatMap(([gid, d]) => (d.activity || []).map(a => ({ ...a, gatewayId: gid }))).sort((a, b) => (b.time || '').localeCompare(a.time || '')).slice(0, 30) || MOCK_ACTIVITY;
     }
 
+    // --- Render: stats strip ---
     function renderStats() {
       const jobs = mergedJobs();
       const tasks = mergedTasks();
@@ -1469,9 +1473,9 @@
       if (!working.length) { el.innerHTML = '<div class="empty-state">No active work</div>'; return; }
       el.innerHTML = working.map(w => `
         <div class="working-item">
-          <div class="working-agent">${w.agent}</div>
-          <div class="working-task">${w.task}</div>
-          <div class="working-meta">${gatewayName(w.gatewayId)} · ${w.progress}%</div>
+          <div class="working-agent">${escapeHtml(w.agent)}</div>
+          <div class="working-task">${escapeHtml(w.task)}</div>
+          <div class="working-meta">${escapeHtml(gatewayName(w.gatewayId))} · ${escapeHtml(String(w.progress))}%</div>
         </div>
       `).join('');
     }
@@ -1481,9 +1485,9 @@
       const tasks = mergedTasks();
       el.innerHTML = tasks.map(t => `
         <div class="task-row">
-          <span class="task-status-dot ${t.status}"></span>
-          <span class="task-title">${t.title}</span>
-          <span class="task-id">${t.id} · ${gatewayName(t.gatewayId)}</span>
+          <span class="task-status-dot ${escapeHtml(t.status)}"></span>
+          <span class="task-title">${escapeHtml(t.title)}</span>
+          <span class="task-id">${escapeHtml(t.id)} · ${escapeHtml(gatewayName(t.gatewayId))}</span>
         </div>
       `).join('');
     }
@@ -1493,10 +1497,10 @@
       const jobs = mergedJobs();
       el.innerHTML = jobs.map(j => `
         <div class="job-row">
-          <span>${j.type || '—'}</span>
-          <span class="job-badge ${j.status}">${j.status}</span>
-          <span>${gatewayName(j.gatewayId)}</span>
-          <span style="color:var(--text-dim)">${j.duration || '—'} ${j.started ? '· ' + j.started : ''}</span>
+          <span>${escapeHtml(j.type || '—')}</span>
+          <span class="job-badge ${escapeHtml(j.status)}">${escapeHtml(j.status)}</span>
+          <span>${escapeHtml(gatewayName(j.gatewayId))}</span>
+          <span style="color:var(--text-dim)">${escapeHtml(j.duration || '—')} ${j.started ? escapeHtml(String(j.started)) : ''}</span>
         </div>
       `).join('');
     }
@@ -1506,10 +1510,10 @@
       document.getElementById('againstCount').textContent = MOCK_AGAINST.length;
       el.innerHTML = MOCK_AGAINST.map(a => `
         <div class="against-item">
-          <div class="against-icon ${a.type}">${a.type === 'deadline' ? '⏱' : a.type === 'blocker' ? '⚠' : '◎'}</div>
+          <div class="against-icon ${escapeHtml(a.type)}">${a.type === 'deadline' ? '⏱' : a.type === 'blocker' ? '⚠' : '◎'}</div>
           <div class="against-content">
-            <div class="against-title">${a.title}</div>
-            <div class="against-desc">${a.desc}</div>
+            <div class="against-title">${escapeHtml(a.title)}</div>
+            <div class="against-desc">${escapeHtml(a.desc)}</div>
           </div>
         </div>
       `).join('');
@@ -1523,8 +1527,8 @@
       el.innerHTML = approvals.map(a => `
         <div class="approval-item">
           <div>
-            <div>${a.action}</div>
-            <div style="font-size:0.75rem;color:var(--text-dim)">${a.summary} · ${gatewayName(a.gatewayId)}</div>
+            <div>${escapeHtml(a.action)}</div>
+            <div style="font-size:0.75rem;color:var(--text-dim)">${escapeHtml(a.summary)} · ${escapeHtml(gatewayName(a.gatewayId))}</div>
           </div>
           <div class="approval-actions">
             <button class="btn btn-secondary">Deny</button>
@@ -1539,31 +1543,36 @@
       const activity = mergedActivity();
       el.innerHTML = activity.map(a => `
         <div class="activity-item">
-          <span class="activity-time">${a.time}</span>
+          <span class="activity-time">${escapeHtml(a.time)}</span>
           <div>
-            <span class="activity-msg">${a.msg}</span>
-            <div class="activity-gateway">${gatewayName(a.gatewayId)}</div>
+            <span class="activity-msg">${escapeHtml(a.msg)}</span>
+            <div class="activity-gateway">${escapeHtml(gatewayName(a.gatewayId))}</div>
           </div>
         </div>
       `).join('');
     }
 
+    // --- Render: overview cards ---
     function renderOverview() {
       const grid = document.getElementById('overviewGrid');
-      grid.innerHTML = gateways.map((gw, i) => `
-        <div class="gateway-card" data-id="${gw.id}" data-index="${i}" data-status="${gw.status}">
-          <button type="button" class="gateway-card-edit" aria-label="Edit gateway" data-id="${gw.id}">
+      grid.innerHTML = gateways.map((gw, i) => {
+        const safeUrl = safeHttpUrl(gw.controlUiUrl);
+        const statusEsc = escapeHtml(gw.status);
+        return `
+        <div class="gateway-card" data-id="${escapeHtml(gw.id)}" data-index="${i}" data-status="${statusEsc}">
+          <button type="button" class="gateway-card-edit" aria-label="Edit gateway" data-id="${escapeHtml(gw.id)}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <div class="gateway-name">${gw.name}</div>
-          <div class="gateway-id">${gw.id}</div>
+          <div class="gateway-name">${escapeHtml(gw.name)}</div>
+          <div class="gateway-id">${escapeHtml(gw.id)}</div>
           <div class="status-row">
-            <span class="status-dot ${gw.status}"></span>
-            <span class="status-label">${gw.status}</span>
+            <span class="status-dot ${statusEsc}"></span>
+            <span class="status-label">${statusEsc}</span>
           </div>
-          ${gw.controlUiUrl ? `<a href="${gw.controlUiUrl}" class="control-link" target="_blank">Open Control UI →</a>` : ''}
+          ${safeUrl ? `<a href="${safeUrl}" class="control-link" target="_blank" rel="noopener noreferrer">Open Control UI →</a>` : ''}
         </div>
-      `).join('') + `
+      `;
+      }).join('') + `
         <div class="gateway-card add-gateway" id="addGatewayCard">
           <div class="add-gateway-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1588,24 +1597,29 @@
       document.getElementById('addGatewayCard').addEventListener('click', openModal);
     }
 
+    // --- Render: gateways table ---
     function renderTable() {
       const tbody = document.getElementById('tableBody');
-      tbody.innerHTML = gateways.map((gw, i) => `
-        <tr class="clickable-row" data-id="${gw.id}" data-index="${i}">
-          <td>${gw.name}</td>
-          <td>${gw.id}</td>
-          <td><span class="table-status"><span class="status-dot ${gw.status}"></span>${gw.status}</span></td>
-          <td>${gw.agents ?? 0}</td>
-          <td>${gw.sessions ?? 0}</td>
-          <td>${gw.channels ?? 0}</td>
+      tbody.innerHTML = gateways.map((gw, i) => {
+        const statusEsc = escapeHtml(gw.status);
+        return `
+        <tr class="clickable-row" data-id="${escapeHtml(gw.id)}" data-index="${i}">
+          <td>${escapeHtml(gw.name)}</td>
+          <td>${escapeHtml(gw.id)}</td>
+          <td><span class="table-status"><span class="status-dot ${statusEsc}"></span>${statusEsc}</span></td>
+          <td>${Number(gw.agents) ?? 0}</td>
+          <td>${Number(gw.sessions) ?? 0}</td>
+          <td>${Number(gw.channels) ?? 0}</td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
 
       tbody.querySelectorAll('tr').forEach(row => {
         row.addEventListener('click', () => openDetail(row.dataset.id));
       });
     }
 
+    // --- Render: gateway detail sidebar ---
     function openDetail(id) {
       const gw = gateways.find(g => g.id === id);
       if (!gw) return;
@@ -1616,6 +1630,7 @@
       const gwJobs = MOCK_JOBS.filter(j => j.gatewayId === id);
       const gwTasks = MOCK_TASKS.filter(t => t.gatewayId === id);
       const gwWorking = MOCK_WORKING.filter(w => w.gatewayId === id);
+      const idEsc = escapeHtml(id);
       body.innerHTML = `
         <div class="detail-section">
           <h4>Agents</h4>
@@ -1628,38 +1643,38 @@
         <div class="detail-section">
           <h4>Sessions</h4>
           <ul class="detail-list">
-            <li><span>Active</span><span>${gw.sessions ?? 0}</span></li>
+            <li><span>Active</span><span>${Number(gw.sessions) ?? 0}</span></li>
           </ul>
         </div>
         <div class="detail-section">
           <h4>Channels</h4>
           <ul class="detail-list">
-            <li><span>Connected</span><span>${gw.channels ?? 0}</span></li>
+            <li><span>Connected</span><span>${Number(gw.channels) ?? 0}</span></li>
           </ul>
         </div>
         <div class="detail-section">
           <h4>Currently Working</h4>
           <ul class="detail-list">
-            ${gwWorking.length ? gwWorking.map(w => `<li><span>${w.agent}</span><span>${w.progress}%</span></li>`).join('') : '<li><span>—</span><span>Idle</span></li>'}
+            ${gwWorking.length ? gwWorking.map(w => `<li><span>${escapeHtml(w.agent)}</span><span>${escapeHtml(String(w.progress))}%</span></li>`).join('') : '<li><span>—</span><span>Idle</span></li>'}
           </ul>
         </div>
         <div class="detail-section">
           <h4>Tasks (this gateway)</h4>
           <ul class="detail-list">
-            ${gwTasks.slice(0, 5).map(t => `<li><span>${t.title}</span><span class="job-badge ${t.status}">${t.status}</span></li>`).join('') || '<li><span>—</span><span>None</span></li>'}
+            ${gwTasks.slice(0, 5).map(t => `<li><span>${escapeHtml(t.title)}</span><span class="job-badge ${escapeHtml(t.status)}">${escapeHtml(t.status)}</span></li>`).join('') || '<li><span>—</span><span>None</span></li>'}
           </ul>
         </div>
         <div class="detail-section">
           <h4>Jobs (this gateway)</h4>
           <ul class="detail-list">
-            ${gwJobs.slice(0, 5).map(j => `<li><span>${j.type}</span><span class="job-badge ${j.status}">${j.status}</span></li>`).join('') || '<li><span>—</span><span>None</span></li>'}
+            ${gwJobs.slice(0, 5).map(j => `<li><span>${escapeHtml(j.type)}</span><span class="job-badge ${escapeHtml(j.status)}">${escapeHtml(j.status)}</span></li>`).join('') || '<li><span>—</span><span>None</span></li>'}
           </ul>
         </div>
         <div class="detail-section">
           <h4>Nodes</h4>
           <ul class="detail-list">
             <li><span>Local</span><span>1</span></li>
-            <li><span>Remote (NAS)</span><span>${id === 'ceo' ? '1' : '0'}</span></li>
+            <li><span>Remote (NAS)</span><span>${idEsc === 'ceo' ? '1' : '0'}</span></li>
           </ul>
         </div>
       `;
@@ -1670,6 +1685,7 @@
       document.getElementById('detailOverlay').classList.remove('open');
     }
 
+    // --- Modals: add/edit gateway ---
     let editingGatewayId = null;
 
     function updateModalForAdd() {
@@ -1928,7 +1944,8 @@
         } else {
           statusEl.textContent = r.status === 404 ? 'Not configured' : 'Unreachable';
         }
-      } catch (_) {
+      } catch (err) {
+        console.error('[Mission Control] Federation health check failed:', err);
         section.style.display = 'block';
         statusEl.textContent = 'Unreachable';
       }
@@ -1943,7 +1960,8 @@
         const r = await fetch('/api/army/nodes');
         if (!r.ok) return [];
         return await r.json();
-      } catch (_) {
+      } catch (err) {
+        console.error('[Mission Control] Army nodes fetch failed:', err);
         return [];
       }
     }
@@ -1954,11 +1972,13 @@
         const r = await fetch(url);
         if (!r.ok) return [];
         return await r.json();
-      } catch (_) {
+      } catch (err) {
+        console.error('[Mission Control] Army orders fetch failed:', err);
         return [];
       }
     }
 
+    // --- Render: Army (unit view, roster, orders) ---
     function renderArmyUnitView(nodes) {
       const el = document.getElementById('armyUnitView');
       if (!el) return;
@@ -2052,7 +2072,8 @@
       if (addresseeRaw.startsWith('{')) {
         try {
           addressee = JSON.parse(addresseeRaw);
-        } catch (_) {
+        } catch (err) {
+          console.error('[Mission Control] Issue order addressee JSON parse:', err);
           msgEl.textContent = 'Addressee: invalid JSON';
           return;
         }
@@ -2062,7 +2083,9 @@
       if (payloadRaw.startsWith('{')) {
         try {
           payload = JSON.parse(payloadRaw);
-        } catch (_) {}
+        } catch (err) {
+          console.warn('[Mission Control] Issue order payload not valid JSON, using as string:', err);
+        }
       }
       const body = {
         addressee,
@@ -2092,6 +2115,7 @@
       }
     });
 
+    // --- Init: detect proxy or connect direct ---
     (async () => {
       try {
         const r = await fetch('/api/gateways');
@@ -2102,7 +2126,9 @@
             return;
           }
         }
-      } catch (_) {}
+      } catch (err) {
+        console.error('[Mission Control] Proxy check failed:', err);
+      }
       gateways.forEach(gw => { if (gw.wsUrl) connectGateway(gw); });
     })();
   </script>

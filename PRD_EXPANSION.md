@@ -150,7 +150,7 @@ This PRD defines **expansion options and functions** for Raise The OpenClaw: com
 |----|-------------|
 | **NFR-EXP-1** | **Backward compatibility:** All expansions are optional; existing mesh, bridge, Mission Control, and federation inbound behavior unchanged when new features disabled. |
 | **NFR-EXP-2** | **Security:** Store API and public APIs protected by auth; signing keys not in mesh-shared memory; rate limits to reduce abuse. |
-| **NFR-EXP-3** | **Documentation:** Each implemented expansion documented (README or design doc); runbooks updated; [CHANGELOG.md](CHANGELOG.md) updated per project rules. |
+| **NFR-EXP-3** | **Documentation:** Each implemented expansion documented (README or design doc); runbooks updated; [changelog.md](changelog.md) updated per project rules. |
 
 ---
 
@@ -195,7 +195,7 @@ This PRD defines **expansion options and functions** for Raise The OpenClaw: com
 
 ## 12. Army of OpenClaw
 
-**Goals:** Chain of command (orders down, reports up), discovery (“who can do X?”), task routing by unit/role, and resilience (failover, timeout, dead-letter). **Scope:** Personnel registry (gateways/agents with rank, unit, skills, status), structured orders format (orderId, type, addressee, payload, priority, deadline, from), dispatcher (receive orders, lookup registry, route to bridge or webhook, track, optional retry/failover), Mission Control extensions (unit view, roster, orders queue, optional missions). **Out of scope:** No OpenClaw gateway or agent protocol change; implementation of registry service, dispatcher, and Mission Control UI is separate. Full design: [OPENCLAW_ARMY_OF_OPENCLAW.md](OPENCLAW_ARMY_OF_OPENCLAW.md).
+**Goals:** Chain of command (orders down, reports up), discovery (“who can do X?”), task routing by unit/role, and resilience (failover, timeout, dead-letter). **Scope:** Personnel registry (gateways/agents with rank, unit, skills, status), structured orders format (orderId, type, addressee, payload, priority, deadline, from), dispatcher (receive orders, lookup registry, route to bridge or webhook, track, optional retry/failover), Mission Control extensions (unit view, roster, orders queue, issue order form, optional missions). **Out of scope:** No OpenClaw gateway or agent protocol change. **Reference implementation:** [army/server.js](army/server.js) (registry + dispatcher), [army/README.md](army/README.md); Mission Control dashboard “Army — Command Post” section when proxy has `OPENCLAW_MC_ARMY_URL`. Full design: [OPENCLAW_ARMY_OF_OPENCLAW.md](OPENCLAW_ARMY_OF_OPENCLAW.md).
 
 ---
 

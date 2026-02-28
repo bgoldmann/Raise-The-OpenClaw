@@ -73,6 +73,8 @@ Reuse existing [mesh memory message](mesh/schemas/memory-message.json) (`type`, 
 | `audience` | `"internal"` \| `"federation"` \| `"both"` | Default `both`: internal mesh only, external only, or both. |
 | `targetUnit` | string (optional) | e.g. `squad-1`, `2nd-platoon`. Only nodes in this unit (per registry) should apply. Empty = all. |
 | `targetTheater` | string (optional) | e.g. `theater-a`. Only gateways in this theater receive. Empty = all. For outbound, only external meshes with matching `theater` id get it. |
+| `expiresAt` | number (optional) | Unix timestamp. Consumers or hub may **drop** or ignore intel after this time (TTL). Useful for time-sensitive context. |
+| `classification` | string (optional) | e.g. `internal`, `federation`. Optional label for filtering or policy (e.g. only forward `federation`-classified intel to external meshes). |
 
 **Future (Option B):** Extend mesh memory schema and store schema so `audience` / `targetUnit` / `targetTheater` are first-class columns or a JSON column.
 

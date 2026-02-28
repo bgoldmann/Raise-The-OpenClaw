@@ -25,6 +25,7 @@ const WebSocket = require('ws');
 const PORT = parseInt(process.env.PORT || process.argv[2] || '3080', 10);
 const MISSION_CONTROL_DIR = process.env.MISSION_CONTROL_DIR || path.join(__dirname, '..');
 const FEDERATION_HUB_URL = process.env.OPENCLAW_MC_FEDERATION_HUB_URL || null;
+const ARMY_URL = process.env.OPENCLAW_MC_ARMY_URL || null;
 const TENANT_HEADER = process.env.OPENCLAW_MC_TENANT_HEADER || null;
 
 function loadGateways() {
@@ -110,6 +111,54 @@ const server = http.createServer((req, res) => {
       res.writeHead(503, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: 'Federation hub unreachable' }));
     });
+    return;
+  }
+  if (ARMY_URL && url.pathname.startsWith('/api/army/')) {
+    const pathSuffix = url.pathname.replace(/^\/api/, '');
+    const targetUrl = ARMY_URL.replace(/\/$/, '') + pathSuffix + (url.search || '');
+    const lib = targetUrl.startsWith('https') ? require('https') : require('http');
+    const method = req.method;
+    const body = method === 'POST' || method === 'PATCH' ? [] : null;
+    if (body) {
+      req.on('data', (c) => body.push(c));
+      req.on('end', () => {
+        const opts = new URL(targetUrl);
+        const reqOpts = {
+          hostname: opts.hostname,
+          port: opts.port || (opts.protocol === 'https:' ? 443 : 80),
+          path: opts.pathname + (opts.search || ''),
+          method,
+          headers: { 'Content-Type': 'application/json' },
+        };
+        if (body.length) reqOpts.headers['Content-Length'] = Buffer.concat(body).length;
+        const proxyReq = lib.request(reqOpts, (upstream) => {
+          const chunks = [];
+          upstream.on('data', (c) => chunks.push(c));
+          upstream.on('end', () => {
+            res.writeHead(upstream.statusCode || 200, { 'Content-Type': upstream.headers['content-type'] || 'application/json' });
+            res.end(Buffer.concat(chunks));
+          });
+        });
+        proxyReq.on('error', () => {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Army service unreachable' }));
+        });
+        if (body.length) proxyReq.write(Buffer.concat(body));
+        proxyReq.end();
+      });
+    } else {
+      lib.get(targetUrl, (upstream) => {
+        const chunks = [];
+        upstream.on('data', (c) => chunks.push(c));
+        upstream.on('end', () => {
+          res.writeHead(upstream.statusCode || 200, { 'Content-Type': upstream.headers['content-type'] || 'application/json' });
+          res.end(Buffer.concat(chunks));
+        });
+      }).on('error', () => {
+        res.writeHead(503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Army service unreachable' }));
+      });
+    }
     return;
   }
   if (url.pathname === '/ws') {

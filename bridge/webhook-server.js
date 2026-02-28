@@ -11,6 +11,9 @@
  *   or BRIDGE_AUTH_BEARER=your-bearer-token (expects Authorization: Bearer <token>).
  *   If set, POST /ingest and POST /bridge require the header; otherwise no auth.
  *
+ * Optional body size limit (DoS): set BRIDGE_MAX_BODY_SIZE to max bytes (e.g. 1048576 for 1MB).
+ *   POST /ingest and /bridge return 413 Payload Too Large when exceeded.
+ *
  * Endpoints:
  *   POST /ingest  — Body: JSON (single mesh message or array). Ingests into local cache. Returns { ingested, memory, skill }.
  *   POST /bridge  — Body: bridge envelope (e.g. Telegram update). Use ?unwrap=telegram|discord|generic to unwrap. Returns same + optional response if mesh_request and handleRequest.
@@ -28,6 +31,7 @@ const AUTH_SECRET = process.env.BRIDGE_AUTH_SECRET || null;
 const AUTH_BEARER = process.env.BRIDGE_AUTH_BEARER || null;
 const METRICS_ENABLED = process.env.BRIDGE_METRICS !== '0';
 const RATE_LIMIT_PER_MIN = parseInt(process.env.BRIDGE_RATE_LIMIT_PER_MIN || '0', 10);
+const MAX_BODY_SIZE = parseInt(process.env.BRIDGE_MAX_BODY_SIZE || '0', 10);
 const rateLimitWindowMs = 60 * 1000;
 const rateLimitByKey = new Map();
 function checkRateLimit(req) {
@@ -60,10 +64,19 @@ function checkAuth(req) {
   return val === AUTH_SECRET;
 }
 
-function parseBody(req) {
+function parseBody(req, maxBytes = 0) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', (c) => chunks.push(c));
+    let total = 0;
+    req.on('data', (c) => {
+      total += c.length;
+      if (maxBytes > 0 && total > maxBytes) {
+        req.destroy();
+        reject(new Error('Payload too large'));
+        return;
+      }
+      chunks.push(c);
+    });
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
   });
@@ -114,15 +127,29 @@ const server = http.createServer(async (req, res) => {
   const reqId = 'req-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
   const start = Date.now();
 
+  if (MAX_BODY_SIZE > 0) {
+    const cl = parseInt(req.headers['content-length'], 10);
+    if (!isNaN(cl) && cl > MAX_BODY_SIZE) {
+      logStructured('warn', 'body_too_large', { reqId, path: pathname, contentLength: cl, max: MAX_BODY_SIZE });
+      send(res, 413, { error: 'Payload too large' });
+      return;
+    }
+  }
+
   let body;
   try {
-    const raw = await parseBody(req);
+    const raw = await parseBody(req, MAX_BODY_SIZE > 0 ? MAX_BODY_SIZE : undefined);
     try {
       body = JSON.parse(raw);
     } catch {
       body = raw;
     }
   } catch (e) {
+    if (e.message === 'Payload too large') {
+      logStructured('warn', 'body_too_large', { reqId, path: pathname });
+      send(res, 413, { error: 'Payload too large' });
+      return;
+    }
     logStructured('error', 'body_read_failed', { reqId, path: pathname, error: e.message });
     send(res, 400, { error: 'Failed to read body' });
     return;

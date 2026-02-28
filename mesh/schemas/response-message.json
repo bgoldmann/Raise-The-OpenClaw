@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raise-the-openclaw/mesh/response-message",
+  "title": "MeshResponseMessage",
+  "description": "Response to mesh request over bridge (PRD FR-1.4)",
+  "type": "object",
+  "required": ["type", "requestId", "kind", "nodeId", "found"],
+  "properties": {
+    "type": { "const": "mesh_response" },
+    "requestId": { "type": "string" },
+    "kind": { "enum": ["memory", "skill"] },
+    "nodeId": { "type": "string" },
+    "found": { "type": "boolean" },
+    "value": {},
+    "content": { "type": "string" },
+    "ts": { "type": "number" }
+  },
+  "additionalProperties": false
+}

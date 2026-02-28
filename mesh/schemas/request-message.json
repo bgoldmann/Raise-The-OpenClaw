@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raise-the-openclaw/mesh/request-message",
+  "title": "MeshRequestMessage",
+  "description": "Request memory key or skill by name over bridge (PRD FR-1.4)",
+  "type": "object",
+  "required": ["type", "requestId", "kind", "nodeId"],
+  "properties": {
+    "type": { "const": "mesh_request" },
+    "requestId": { "type": "string" },
+    "kind": { "enum": ["memory", "skill"] },
+    "scope": { "type": "string" },
+    "key": { "type": "string" },
+    "name": { "type": "string" },
+    "nodeId": { "type": "string" },
+    "ts": { "type": "number" }
+  },
+  "additionalProperties": false
+}

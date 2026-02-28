@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raise-the-openclaw/mesh/skill-message",
+  "title": "MeshSkillMessage",
+  "description": "Structured skill message for OpenClaw mesh (PRD FR-1.2)",
+  "type": "object",
+  "required": ["type", "name", "sourceNode", "content"],
+  "properties": {
+    "type": { "const": "skill", "description": "Message type" },
+    "name": { "type": "string", "description": "Skill name" },
+    "sourceNode": { "type": "string", "description": "Node that published the skill" },
+    "content": { "type": "string", "description": "Content or URL" },
+    "id": { "type": "string", "description": "Optional unique id" },
+    "ts": { "type": "number", "description": "Optional Unix timestamp" }
+  },
+  "additionalProperties": false
+}

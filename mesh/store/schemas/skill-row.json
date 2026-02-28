@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raise-the-openclaw/mesh/store/skill-row",
+  "title": "MeshSkillRow",
+  "description": "Shared skill row (FR-2.2) — API/response shape",
+  "type": "object",
+  "required": ["name", "source_node", "updated_at"],
+  "properties": {
+    "id": { "type": "integer" },
+    "name": { "type": "string" },
+    "source_node": { "type": "string" },
+    "content": { "type": "string", "description": "Inline content" },
+    "path": { "type": "string", "description": "Path or URL to content" },
+    "updated_at": { "type": "integer", "description": "Unix seconds" }
+  },
+  "additionalProperties": false
+}

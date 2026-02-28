@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Raise The OpenClaw — Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0e17;
+      --bg-card: rgba(12, 20, 35, 0.85);
+      --accent: #00d4aa;
+      --accent-dim: #00a88a;
+      --accent-glow: rgba(0, 212, 170, 0.35);
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --border: rgba(0, 212, 170, 0.2);
+      --connected: #00d4aa;
+      --disconnected: #64748b;
+      --error: #f43f5e;
+      --error-glow: rgba(244, 63, 94, 0.3);
+      --warn: #f59e0b;
+      --warn-glow: rgba(245, 158, 11, 0.25);
+      --success: #22c55e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-dark);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated grid background */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(0, 212, 170, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 170, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Scan line animation */
+    .scan-line {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
+      animation: scan 4s linear infinite;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.6;
+    }
+
+    @keyframes scan {
+      0% { transform: translateY(-100vh); }
+      100% { transform: translateY(100vh); }
+    }
+
+    /* Radial glow */
+    .radial-glow {
+      position: fixed;
+      top: -50%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120%;
+      height: 80%;
+      background: radial-gradient(ellipse, rgba(0, 212, 170, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 2;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      padding: 2rem 0 3rem;
+    }
+
+    .logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: logo-shimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes logo-shimmer {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.2); }
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.5rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+
+    /* Section titles */
+    .section-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 1em;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: title-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes title-pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    /* Overview cards grid */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .gateway-card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: card-enter 0.6s ease-out backwards;
+    }
+
+    .gateway-card:nth-child(1) { animation-delay: 0.1s; }
+    .gateway-card:nth-child(2) { animation-delay: 0.2s; }
+    .gateway-card:nth-child(3) { animation-delay: 0.3s; }
+    .gateway-card:nth-child(4) { animation-delay: 0.4s; }
+
+    @keyframes card-enter {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .gateway-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(0, 212, 170, 0.4);
+      box-shadow: 0 12px 40px -10px rgba(0, 212, 170, 0.2);
+    }
+
+    .gateway-card.add-gateway {
+      border-style: dashed;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 160px;
+      cursor: pointer;
+    }
+
+    .gateway-card.add-gateway:hover {
+      background: rgba(0, 212, 170, 0.05);
+      border-color: var(--accent);
+    }
+
+    .add-gateway-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+
+    .add-gateway-btn svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--accent);
+      opacity: 0.7;
+      transition: transform 0.3s ease;
+    }
+
+    .gateway-card.add-gateway:hover .add-gateway-btn svg {
+      transform: scale(1.1) rotate(90deg);
+    }
+
+    .gateway-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .gateway-id {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected {
+      background: var(--connected);
+      box-shadow: 0 0 12px var(--accent-glow);
+      animation: status-pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.disconnected {
+      background: var(--disconnected);
+    }
+
+    .status-dot.error {
+      background: var(--error);
+      box-shadow: 0 0 12px var(--error-glow);
+      animation: status-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes status-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.2); }
+    }
+
+    .status-label {
+      font-size: 0.8rem;
+    }
+
+    .control-link {
+      display: inline-block;
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--accent);
+      text-decoration: none;
+      opacity: 0.8;
+      transition: opacity 0.3s;
+    }
+
+    .control-link:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+
+    .gateway-card-edit {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: rgba(0, 212, 170, 0.15);
+      color: var(--accent);
+      border-radius: 6px;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.2s, background 0.2s;
+    }
+
+    .gateway-card-edit:hover {
+      opacity: 1;
+      background: rgba(0, 212, 170, 0.25);
+    }
+
+    .gateway-card-edit svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Gateways table */
+    .table-section {
+      margin-bottom: 2.5rem;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-card);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      padding: 1rem 1.25rem;
+      text-align: left;
+    }
+
+    th {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    th:hover {
+      background: rgba(0, 212, 170, 0.05);
+    }
+
+    td {
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr {
+      transition: background 0.3s;
+      animation: row-enter 0.5s ease-out backwards;
+    }
+
+    tr:nth-child(1) { animation-delay: 0.05s; }
+    tr:nth-child(2) { animation-delay: 0.1s; }
+    tr:nth-child(3) { animation-delay: 0.15s; }
+    tr:nth-child(4) { animation-delay: 0.2s; }
+
+    @keyframes row-enter {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    tr:hover td {
+      background: rgba(0, 212, 170, 0.03);
+    }
+
+    .table-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+    }
+
+    /* Bridge status */
+    .bridge-section {
+      margin-bottom: 2.5rem;
+    }
+
+    .bridge-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      animation: card-enter 0.6s ease-out 0.5s backwards;
+    }
+
+    .bridge-label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .bridge-status {
+      font-size: 0.8rem;
+      color: var(--accent);
+      opacity: 0.9;
+    }
+
+    /* Detail sidebar */
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.4s ease;
+    }
+
+    .detail-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .detail-sidebar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 420px;
+      max-width: 100%;
+      height: 100%;
+      background: var(--bg-dark);
+      border-left: 1px solid var(--border);
+      z-index: 101;
+      transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+    }
+
+    .detail-overlay.open .detail-sidebar {
+      transform: translateX(0);
+    }
+
+    .detail-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .detail-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem;
+    }
+
+    .detail-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 0.5rem;
+      transition: color 0.3s;
+    }
+
+    .detail-close:hover {
+      color: var(--accent);
+    }
+
+    .detail-body {
+      padding: 1.5rem;
+    }
+
+    .detail-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .detail-section h4 {
+      font-size: 0.75rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      margin-bottom: 0.75rem;
+    }
+
+    .detail-list {
+      list-style: none;
+    }
+
+    .detail-list li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.4s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      transform: scale(0.9) translateY(20px);
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .modal-overlay.open .modal {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-header h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1rem;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-bottom: 0.35rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      padding: 0.6rem 1.25rem;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: none;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      color: var(--text);
+      border-color: var(--text-dim);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg-dark);
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dim);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .clickable-row {
+      cursor: pointer;
+    }
+
+    /* Additional animation polish */
+    .gateway-card:not(.add-gateway) {
+      animation: card-enter 0.6s ease-out backwards;
+    }
+
+    .gateway-card { position: relative; }
+
+    /* Subtle glow pulse on connected cards */
+    .gateway-card[data-status="connected"]:hover {
+      box-shadow: 0 12px 40px -10px var(--accent-glow), 0 0 60px -20px rgba(0, 212, 170, 0.15);
+    }
+
+    /* Subtle floating header */
+    header {
+      animation: header-float 6s ease-in-out infinite;
+    }
+
+    @keyframes header-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    /* Smooth transitions for modal/detail */
+    .detail-sidebar .detail-section {
+      animation: slide-in 0.4s ease-out backwards;
+    }
+
+    .detail-sidebar .detail-section:nth-child(1) { animation-delay: 0.05s; }
+    .detail-sidebar .detail-section:nth-child(2) { animation-delay: 0.1s; }
+    .detail-sidebar .detail-section:nth-child(3) { animation-delay: 0.15s; }
+    .detail-sidebar .detail-section:nth-child(4) { animation-delay: 0.2s; }
+
+    @keyframes slide-in {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* Stats strip */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      transition: all 0.3s ease;
+      animation: card-enter 0.5s ease-out backwards;
+    }
+
+    .stat-box:nth-child(1) { animation-delay: 0.05s; }
+    .stat-box:nth-child(2) { animation-delay: 0.1s; }
+    .stat-box:nth-child(3) { animation-delay: 0.15s; }
+    .stat-box:nth-child(4) { animation-delay: 0.2s; }
+    .stat-box:nth-child(5) { animation-delay: 0.25s; }
+    .stat-box:nth-child(6) { animation-delay: 0.3s; }
+    .stat-box:nth-child(7) { animation-delay: 0.35s; }
+
+    .stat-box:hover {
+      border-color: rgba(0, 212, 170, 0.35);
+      transform: translateY(-2px);
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.35rem;
+    }
+
+    .stat-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .stat-box.warn .stat-value { color: var(--warn); }
+    .stat-box.error .stat-value { color: var(--error); }
+    .stat-box.success .stat-value { color: var(--success); }
+
+    /* Two-column layout for Working + Tasks */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      animation: card-enter 0.5s ease-out backwards;
+    }
+
+    .panel.anim-1 { animation-delay: 0.1s; }
+    .panel.anim-2 { animation-delay: 0.15s; }
+    .panel.anim-3 { animation-delay: 0.2s; }
+    .panel.anim-4 { animation-delay: 0.25s; }
+
+    .panel-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+    }
+
+    .panel-body {
+      padding: 1rem 1.25rem;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .working-item {
+      padding: 0.85rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      transition: background 0.3s;
+    }
+
+    .working-item:last-child { border-bottom: none; }
+
+    .working-item:hover {
+      background: rgba(0, 212, 170, 0.04);
+    }
+
+    .working-agent {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+    }
+
+    .working-task {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    .working-meta {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-top: 0.35rem;
+    }
+
+    .task-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.85rem;
+    }
+
+    .task-row:last-child { border-bottom: none; }
+
+    .task-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .task-status-dot.pending { background: var(--disconnected); }
+    .task-status-dot.in_progress { background: var(--accent); animation: status-pulse 2s ease-in-out infinite; }
+    .task-status-dot.done { background: var(--success); }
+    .task-status-dot.blocked { background: var(--warn); }
+
+    .task-title { flex: 1; }
+    .task-id { font-size: 0.7rem; color: var(--text-dim); }
+
+    /* Jobs section */
+    .jobs-list .job-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.8rem;
+    }
+
+    .jobs-list .job-row:last-child { border-bottom: none; }
+
+    .job-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 500;
+    }
+
+    .job-badge.running { background: rgba(0, 212, 170, 0.2); color: var(--accent); }
+    .job-badge.queued { background: rgba(148, 163, 184, 0.2); color: var(--text-dim); }
+    .job-badge.completed { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+    .job-badge.failed { background: rgba(244, 63, 94, 0.2); color: var(--error); }
+    .job-badge.pending { background: rgba(148, 163, 184, 0.2); color: var(--text-dim); }
+    .job-badge.in_progress { background: rgba(0, 212, 170, 0.2); color: var(--accent); }
+    .job-badge.done { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+    .job-badge.blocked { background: rgba(245, 158, 11, 0.2); color: var(--warn); }
+
+    /* Against / Blockers */
+    .against-list .against-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .against-list .against-item:last-child { border-bottom: none; }
+
+    .against-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+
+    .against-icon.deadline { background: rgba(245, 158, 11, 0.2); color: var(--warn); }
+    .against-icon.blocker { background: rgba(244, 63, 94, 0.2); color: var(--error); }
+    .against-icon.target { background: rgba(0, 212, 170, 0.2); color: var(--accent); }
+
+    .against-content { flex: 1; }
+    .against-title { font-size: 0.85rem; margin-bottom: 0.2rem; }
+    .against-desc { font-size: 0.75rem; color: var(--text-dim); }
+
+    /* Approvals */
+    .approval-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.85rem;
+    }
+
+    .approval-item:last-child { border-bottom: none; }
+
+    .approval-actions { display: flex; gap: 0.5rem; }
+    .approval-actions .btn { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+
+    /* Activity feed */
+    .activity-feed {
+      padding: 1rem 1.25rem;
+    }
+
+    .activity-item {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.8rem;
+    }
+
+    .activity-item:last-child { border-bottom: none; }
+
+    .activity-time {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      min-width: 3.5rem;
+    }
+
+    .activity-msg { color: var(--text); }
+    .activity-gateway { color: var(--accent); font-size: 0.75rem; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="scan-line"></div>
+  <div class="radial-glow"></div>
+
+  <div class="container">
+    <header>
+      <h1 class="logo">OPENCLAW MISSION CONTROL</h1>
+      <p class="subtitle">Two-Node & Extensible Gateway Aggregation</p>
+    </header>
+
+    <div class="stats-strip" id="statsStrip">
+      <!-- Injected by JS -->
+    </div>
+
+    <section class="overview-section">
+      <h2 class="section-title">Overview</h2>
+      <div class="overview-grid" id="overviewGrid">
+        <!-- Gateway cards injected by JS -->
+      </div>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="panel anim-1">
+        <div class="panel-header">
+          <span class="panel-title">Currently Working</span>
+        </div>
+        <div class="panel-body" id="workingPanel">
+          <!-- Injected by JS -->
+        </div>
+      </section>
+      <section class="panel anim-2">
+        <div class="panel-header">
+          <span class="panel-title">Tasks</span>
+        </div>
+        <div class="panel-body" id="tasksPanel">
+          <!-- Injected by JS -->
+        </div>
+      </section>
+    </div>
+
+    <section class="panel anim-3">
+      <div class="panel-header">
+        <span class="panel-title">Jobs</span>
+      </div>
+      <div class="panel-body jobs-list" id="jobsPanel">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="panel anim-3">
+        <div class="panel-header">
+          <span class="panel-title">Working Against</span>
+          <span class="stat-value" style="font-size:0.9rem" id="againstCount">0</span>
+        </div>
+        <div class="panel-body against-list" id="againstPanel">
+          <!-- Injected by JS -->
+        </div>
+      </section>
+      <section class="panel anim-4">
+        <div class="panel-header">
+          <span class="panel-title">Pending Approvals</span>
+          <span class="stat-value" style="font-size:0.9rem" id="approvalsCount">0</span>
+        </div>
+        <div class="panel-body" id="approvalsPanel">
+          <!-- Injected by JS -->
+        </div>
+      </section>
+    </div>
+
+    <section class="panel anim-4" style="margin-bottom: 2rem;">
+      <div class="panel-header">
+        <span class="panel-title">Recent Activity</span>
+      </div>
+      <div class="activity-feed" id="activityPanel">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+
+    <section class="table-section">
+      <h2 class="section-title">Gateways</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="name">Name</th>
+              <th data-sort="id">ID</th>
+              <th>Status</th>
+              <th data-sort="agents">Agents</th>
+              <th data-sort="sessions">Sessions</th>
+              <th data-sort="channels">Channels</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Rows injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bridge-section">
+      <h2 class="section-title">Bridge Status</h2>
+      <div class="bridge-card">
+        <span class="bridge-label">CEO ↔ Sec bridge</span>
+        <span class="bridge-status">Traffic via channel · Last activity: —</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- Detail sidebar -->
+  <div class="detail-overlay" id="detailOverlay">
+    <div class="detail-sidebar" id="detailSidebar">
+      <div class="detail-header">
+        <h3 class="detail-title" id="detailTitle">Gateway Detail</h3>
+        <button class="detail-close" id="detailClose" aria-label="Close">✕</button>
+      </div>
+      <div class="detail-body" id="detailBody">
+        <!-- Detail content injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Add / Edit gateway modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add Gateway</h2>
+      </div>
+      <div class="modal-body">
+        <form id="addGatewayForm">
+          <div class="form-group">
+            <label for="gwId">ID</label>
+            <input type="text" id="gwId" placeholder="ceo" required>
+          </div>
+          <div class="form-group">
+            <label for="gwName">Name</label>
+            <input type="text" id="gwName" placeholder="CEO (Mac Mini)" required>
+          </div>
+          <div class="form-group">
+            <label for="gwWsUrl">WebSocket URL</label>
+            <input type="text" id="gwWsUrl" placeholder="ws://mac-mini.local:18789" required>
+          </div>
+          <div class="form-group">
+            <label for="gwControlUrl">Control UI URL (optional)</label>
+            <input type="text" id="gwControlUrl" placeholder="http://127.0.0.1:18789">
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="modalCancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="modalSubmitBtn">Add Gateway</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_GATEWAYS = [
+      { id: 'ceo', name: 'CEO (Mac Mini)', wsUrl: 'ws://mac-mini.local:18789', controlUiUrl: 'http://127.0.0.1:18789', status: 'connected', agents: 6, sessions: 2, channels: 3 },
+      { id: 'sec', name: 'Sec (Synology)', wsUrl: 'ws://192.168.1.60:18789', controlUiUrl: 'http://192.168.1.60:18789', status: 'connected', agents: 4, sessions: 1, channels: 2 },
+    ];
+
+    let gateways = JSON.parse(localStorage.getItem('openclaw-gateways') || JSON.stringify(DEFAULT_GATEWAYS));
+
+    const MOCK_WORKING = [
+      { gatewayId: 'ceo', agent: 'Sec', task: 'Summarize Q4 report and draft exec summary', progress: 65 },
+      { gatewayId: 'ceo', agent: 'Research', task: 'Verify citations for climate section', progress: 30 },
+      { gatewayId: 'sec', agent: 'Coding', task: 'Run tests on auth module', progress: 80 },
+    ];
+
+    const MOCK_TASKS = [
+      { id: 't1', title: 'Review delegation rules', status: 'in_progress', gatewayId: 'ceo' },
+      { id: 't2', title: 'Sync bridge channel config', status: 'pending', gatewayId: 'ceo' },
+      { id: 't3', title: 'Backup agent configs', status: 'pending', gatewayId: 'sec' },
+      { id: 't4', title: 'Update SOUL prompts', status: 'done', gatewayId: 'ceo' },
+      { id: 't5', title: 'Fix NAS disk alert', status: 'blocked', gatewayId: 'sec' },
+    ];
+
+    const MOCK_JOBS = [
+      { id: 'j1', type: 'sync', status: 'running', gatewayId: 'ceo', duration: '2m', started: '2m ago' },
+      { id: 'j2', type: 'backup', status: 'queued', gatewayId: 'sec', duration: '—', started: '—' },
+      { id: 'j3', type: 'report', status: 'completed', gatewayId: 'ceo', duration: '45s', started: '12m ago' },
+      { id: 'j4', type: 'webhook', status: 'failed', gatewayId: 'sec', duration: '—', started: '1h ago' },
+    ];
+
+    const MOCK_AGAINST = [
+      { type: 'deadline', title: 'Q4 summary due', desc: 'CEO → Sec handoff by EOD' },
+      { type: 'blocker', title: 'NAS disk >90%', desc: 'Sec gateway — cleanup or expand volume' },
+      { type: 'target', title: 'Bridge latency', desc: 'Keep CEO↔Sec &lt; 500ms p95' },
+    ];
+
+    const MOCK_APPROVALS = [
+      { id: 'a1', action: 'system.run', summary: 'Execute script on NAS', gatewayId: 'sec' },
+      { id: 'a2', action: 'agent.invoke', summary: 'Invoke Research agent (CEO)', gatewayId: 'ceo' },
+    ];
+
+    const MOCK_ACTIVITY = [
+      { time: '14:32', msg: 'Session started', gatewayId: 'ceo' },
+      { time: '14:30', msg: 'Job completed: report', gatewayId: 'ceo' },
+      { time: '14:28', msg: 'Approval requested: system.run', gatewayId: 'sec' },
+      { time: '14:25', msg: 'Agent Sec — task progress 65%', gatewayId: 'ceo' },
+      { time: '14:22', msg: 'Bridge message relayed CEO → Sec', gatewayId: 'ceo' },
+      { time: '14:20', msg: 'Gateway reconnected', gatewayId: 'sec' },
+    ];
+
+    function gatewayName(id) { return gateways.find(g => g.id === id)?.name || id; }
+
+    function renderStats() {
+      const jobsRunning = MOCK_JOBS.filter(j => j.status === 'running').length;
+      const jobsQueued = MOCK_JOBS.filter(j => j.status === 'queued').length;
+      const jobsDone = MOCK_JOBS.filter(j => j.status === 'completed').length;
+      const jobsFailed = MOCK_JOBS.filter(j => j.status === 'failed').length;
+      const tasksPending = MOCK_TASKS.filter(t => t.status === 'pending').length;
+      const tasksActive = MOCK_TASKS.filter(t => t.status === 'in_progress').length;
+      const tasksDone = MOCK_TASKS.filter(t => t.status === 'done').length;
+      const approvalsPending = MOCK_APPROVALS.length;
+
+      document.getElementById('statsStrip').innerHTML = `
+        <div class="stat-box"><div class="stat-label">Jobs running</div><div class="stat-value">${jobsRunning}</div></div>
+        <div class="stat-box"><div class="stat-label">Jobs queued</div><div class="stat-value">${jobsQueued}</div></div>
+        <div class="stat-box success"><div class="stat-label">Jobs done</div><div class="stat-value">${jobsDone}</div></div>
+        <div class="stat-box error"><div class="stat-label">Jobs failed</div><div class="stat-value">${jobsFailed}</div></div>
+        <div class="stat-box"><div class="stat-label">Tasks active</div><div class="stat-value">${tasksActive}</div></div>
+        <div class="stat-box"><div class="stat-label">Tasks pending</div><div class="stat-value">${tasksPending}</div></div>
+        <div class="stat-box warn"><div class="stat-label">Approvals</div><div class="stat-value">${approvalsPending}</div></div>
+      `;
+    }
+
+    function renderWorking() {
+      const el = document.getElementById('workingPanel');
+      if (!MOCK_WORKING.length) { el.innerHTML = '<div class="empty-state">No active work</div>'; return; }
+      el.innerHTML = MOCK_WORKING.map(w => `
+        <div class="working-item">
+          <div class="working-agent">${w.agent}</div>
+          <div class="working-task">${w.task}</div>
+          <div class="working-meta">${gatewayName(w.gatewayId)} · ${w.progress}%</div>
+        </div>
+      `).join('');
+    }
+
+    function renderTasks() {
+      const el = document.getElementById('tasksPanel');
+      el.innerHTML = MOCK_TASKS.map(t => `
+        <div class="task-row">
+          <span class="task-status-dot ${t.status}"></span>
+          <span class="task-title">${t.title}</span>
+          <span class="task-id">${t.id} · ${gatewayName(t.gatewayId)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderJobs() {
+      const el = document.getElementById('jobsPanel');
+      el.innerHTML = MOCK_JOBS.map(j => `
+        <div class="job-row">
+          <span>${j.type}</span>
+          <span class="job-badge ${j.status}">${j.status}</span>
+          <span>${gatewayName(j.gatewayId)}</span>
+          <span style="color:var(--text-dim)">${j.duration} ${j.started ? '· ' + j.started : ''}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderAgainst() {
+      const el = document.getElementById('againstPanel');
+      document.getElementById('againstCount').textContent = MOCK_AGAINST.length;
+      el.innerHTML = MOCK_AGAINST.map(a => `
+        <div class="against-item">
+          <div class="against-icon ${a.type}">${a.type === 'deadline' ? '⏱' : a.type === 'blocker' ? '⚠' : '◎'}</div>
+          <div class="against-content">
+            <div class="against-title">${a.title}</div>
+            <div class="against-desc">${a.desc}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderApprovals() {
+      const el = document.getElementById('approvalsPanel');
+      document.getElementById('approvalsCount').textContent = MOCK_APPROVALS.length;
+      if (!MOCK_APPROVALS.length) { el.innerHTML = '<div class="empty-state">No pending approvals</div>'; return; }
+      el.innerHTML = MOCK_APPROVALS.map(a => `
+        <div class="approval-item">
+          <div>
+            <div>${a.action}</div>
+            <div style="font-size:0.75rem;color:var(--text-dim)">${a.summary} · ${gatewayName(a.gatewayId)}</div>
+          </div>
+          <div class="approval-actions">
+            <button class="btn btn-secondary">Deny</button>
+            <button class="btn btn-primary">Approve</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderActivity() {
+      const el = document.getElementById('activityPanel');
+      el.innerHTML = MOCK_ACTIVITY.map(a => `
+        <div class="activity-item">
+          <span class="activity-time">${a.time}</span>
+          <div>
+            <span class="activity-msg">${a.msg}</span>
+            <div class="activity-gateway">${gatewayName(a.gatewayId)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderOverview() {
+      const grid = document.getElementById('overviewGrid');
+      grid.innerHTML = gateways.map((gw, i) => `
+        <div class="gateway-card" data-id="${gw.id}" data-index="${i}" data-status="${gw.status}">
+          <button type="button" class="gateway-card-edit" aria-label="Edit gateway" data-id="${gw.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <div class="gateway-name">${gw.name}</div>
+          <div class="gateway-id">${gw.id}</div>
+          <div class="status-row">
+            <span class="status-dot ${gw.status}"></span>
+            <span class="status-label">${gw.status}</span>
+          </div>
+          ${gw.controlUiUrl ? `<a href="${gw.controlUiUrl}" class="control-link" target="_blank">Open Control UI →</a>` : ''}
+        </div>
+      `).join('') + `
+        <div class="gateway-card add-gateway" id="addGatewayCard">
+          <div class="add-gateway-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Gateway
+          </div>
+        </div>
+      `;
+
+      grid.querySelectorAll('.gateway-card:not(.add-gateway)').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if (!e.target.closest('.gateway-card-edit')) openDetail(card.dataset.id);
+        });
+      });
+      grid.querySelectorAll('.gateway-card-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const gw = gateways.find(g => g.id === btn.dataset.id);
+          if (gw) openModalForEdit(gw);
+        });
+      });
+      document.getElementById('addGatewayCard').addEventListener('click', openModal);
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = gateways.map((gw, i) => `
+        <tr class="clickable-row" data-id="${gw.id}" data-index="${i}">
+          <td>${gw.name}</td>
+          <td>${gw.id}</td>
+          <td><span class="table-status"><span class="status-dot ${gw.status}"></span>${gw.status}</span></td>
+          <td>${gw.agents ?? 0}</td>
+          <td>${gw.sessions ?? 0}</td>
+          <td>${gw.channels ?? 0}</td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('tr').forEach(row => {
+        row.addEventListener('click', () => openDetail(row.dataset.id));
+      });
+    }
+
+    function openDetail(id) {
+      const gw = gateways.find(g => g.id === id);
+      if (!gw) return;
+      const overlay = document.getElementById('detailOverlay');
+      const title = document.getElementById('detailTitle');
+      const body = document.getElementById('detailBody');
+      title.textContent = gw.name;
+      const gwJobs = MOCK_JOBS.filter(j => j.gatewayId === id);
+      const gwTasks = MOCK_TASKS.filter(t => t.gatewayId === id);
+      const gwWorking = MOCK_WORKING.filter(w => w.gatewayId === id);
+      body.innerHTML = `
+        <div class="detail-section">
+          <h4>Agents</h4>
+          <ul class="detail-list">
+            <li><span>Sec</span><span>default · gpt-4o</span></li>
+            <li><span>Research</span><span>claude-sonnet</span></li>
+            <li><span>Coding</span><span>claude-opus</span></li>
+          </ul>
+        </div>
+        <div class="detail-section">
+          <h4>Sessions</h4>
+          <ul class="detail-list">
+            <li><span>Active</span><span>${gw.sessions ?? 0}</span></li>
+          </ul>
+        </div>
+        <div class="detail-section">
+          <h4>Channels</h4>
+          <ul class="detail-list">
+            <li><span>Connected</span><span>${gw.channels ?? 0}</span></li>
+          </ul>
+        </div>
+        <div class="detail-section">
+          <h4>Currently Working</h4>
+          <ul class="detail-list">
+            ${gwWorking.length ? gwWorking.map(w => `<li><span>${w.agent}</span><span>${w.progress}%</span></li>`).join('') : '<li><span>—</span><span>Idle</span></li>'}
+          </ul>
+        </div>
+        <div class="detail-section">
+          <h4>Tasks (this gateway)</h4>
+          <ul class="detail-list">
+            ${gwTasks.slice(0, 5).map(t => `<li><span>${t.title}</span><span class="job-badge ${t.status}">${t.status}</span></li>`).join('') || '<li><span>—</span><span>None</span></li>'}
+          </ul>
+        </div>
+        <div class="detail-section">
+          <h4>Jobs (this gateway)</h4>
+          <ul class="detail-list">
+            ${gwJobs.slice(0, 5).map(j => `<li><span>${j.type}</span><span class="job-badge ${j.status}">${j.status}</span></li>`).join('') || '<li><span>—</span><span>None</span></li>'}
+          </ul>
+        </div>
+        <div class="detail-section">
+          <h4>Nodes</h4>
+          <ul class="detail-list">
+            <li><span>Local</span><span>1</span></li>
+            <li><span>Remote (NAS)</span><span>${id === 'ceo' ? '1' : '0'}</span></li>
+          </ul>
+        </div>
+      `;
+      overlay.classList.add('open');
+    }
+
+    function closeDetail() {
+      document.getElementById('detailOverlay').classList.remove('open');
+    }
+
+    let editingGatewayId = null;
+
+    function updateModalForAdd() {
+      editingGatewayId = null;
+      document.getElementById('modalTitle').textContent = 'Add Gateway';
+      document.getElementById('modalSubmitBtn').textContent = 'Add Gateway';
+      const idInput = document.getElementById('gwId');
+      idInput.removeAttribute('readonly');
+      document.getElementById('addGatewayForm').reset();
+    }
+
+    function openModal() {
+      updateModalForAdd();
+      document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function openModalForEdit(gw) {
+      editingGatewayId = gw.id;
+      document.getElementById('modalTitle').textContent = 'Edit Gateway';
+      document.getElementById('modalSubmitBtn').textContent = 'Save';
+      document.getElementById('gwId').value = gw.id;
+      document.getElementById('gwId').setAttribute('readonly', 'readonly');
+      document.getElementById('gwName').value = gw.name || '';
+      document.getElementById('gwWsUrl').value = gw.wsUrl || '';
+      document.getElementById('gwControlUrl').value = gw.controlUiUrl || '';
+      document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('open');
+      updateModalForAdd();
+    }
+
+    function updateGateway(id, data) {
+      const gw = gateways.find(g => g.id === id);
+      if (!gw) return;
+      gw.name = data.name;
+      gw.wsUrl = data.wsUrl;
+      gw.controlUiUrl = data.controlUiUrl || null;
+      localStorage.setItem('openclaw-gateways', JSON.stringify(gateways));
+      renderOverview();
+      renderTable();
+      closeModal();
+    }
+
+    function saveGateway(data) {
+      const gw = {
+        id: data.id,
+        name: data.name,
+        wsUrl: data.wsUrl,
+        controlUiUrl: data.controlUiUrl || null,
+        status: 'disconnected',
+        agents: 0,
+        sessions: 0,
+        channels: 0
+      };
+      gateways.push(gw);
+      localStorage.setItem('openclaw-gateways', JSON.stringify(gateways));
+      renderOverview();
+      renderTable();
+      closeModal();
+    }
+
+    document.getElementById('detailClose').addEventListener('click', closeDetail);
+    document.getElementById('detailOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'detailOverlay') closeDetail();
+    });
+    document.getElementById('modalCancel').addEventListener('click', closeModal);
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modalOverlay') closeModal();
+    });
+
+    document.getElementById('addGatewayForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = {
+        id: document.getElementById('gwId').value.trim(),
+        name: document.getElementById('gwName').value.trim(),
+        wsUrl: document.getElementById('gwWsUrl').value.trim(),
+        controlUiUrl: document.getElementById('gwControlUrl').value.trim() || null
+      };
+      if (editingGatewayId) {
+        updateGateway(editingGatewayId, data);
+      } else {
+        saveGateway(data);
+        document.getElementById('addGatewayForm').reset();
+      }
+    });
+
+    // Sort table
+    let sortDir = {};
+    document.querySelectorAll('th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        const numeric = ['agents', 'sessions', 'channels'].includes(key);
+        const dir = (sortDir[key] = (sortDir[key] || 1) * -1);
+        gateways.sort((a, b) => {
+          const va = a[key] ?? (numeric ? 0 : '');
+          const vb = b[key] ?? (numeric ? 0 : '');
+          if (numeric) return dir * ((va|0) - (vb|0));
+          return dir * String(va).localeCompare(String(vb));
+        });
+        renderTable();
+      });
+    });
+
+    renderStats();
+    renderOverview();
+    renderTable();
+    renderWorking();
+    renderTasks();
+    renderJobs();
+    renderAgainst();
+    renderApprovals();
+    renderActivity();
+  </script>
+</body>
+</html>

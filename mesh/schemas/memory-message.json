@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raise-the-openclaw/mesh/memory-message",
+  "title": "MeshMemoryMessage",
+  "description": "Structured memory message for OpenClaw mesh (PRD FR-1.1)",
+  "type": "object",
+  "required": ["type", "scope", "key", "value", "nodeId", "ts"],
+  "properties": {
+    "type": { "const": "memory", "description": "Message type" },
+    "scope": { "type": "string", "description": "node | mesh | user:<id>" },
+    "key": { "type": "string", "description": "Memory key" },
+    "value": { "description": "Any JSON-serializable value" },
+    "nodeId": { "type": "string", "description": "Originating node id" },
+    "ts": { "type": "number", "description": "Unix timestamp (seconds)" },
+    "id": { "type": "string", "description": "Optional unique id" },
+    "userScope": { "type": "string", "description": "Optional user scope" }
+  },
+  "additionalProperties": false
+}

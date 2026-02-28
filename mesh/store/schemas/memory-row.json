@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raise-the-openclaw/mesh/store/memory-row",
+  "title": "MeshMemoryRow",
+  "description": "Shared memory row (FR-2.1) — API/response shape",
+  "type": "object",
+  "required": ["scope", "key", "value", "node_id", "updated_at"],
+  "properties": {
+    "id": { "type": "integer", "description": "Optional primary key" },
+    "scope": { "type": "string", "description": "node | mesh | user:<id>" },
+    "key": { "type": "string" },
+    "value": { "description": "JSON-serializable value" },
+    "node_id": { "type": "string" },
+    "updated_at": { "type": "integer", "description": "Unix seconds" }
+  },
+  "additionalProperties": false
+}

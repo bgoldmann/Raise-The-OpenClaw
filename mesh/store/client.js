@@ -256,6 +256,12 @@ function openStore(dbPath) {
       conn.prepare('UPDATE army_registry SET updated_at = ? WHERE id = ?').run(ts, id);
       return this.getNode(id);
     },
+    /** Mark registry nodes as offline when updated_at is older than ttlSec (for ARMY_REGISTRY_TTL_SEC). */
+    markStaleRegistryNodesOffline(ttlSec) {
+      const cutoff = now() - ttlSec;
+      const r = conn.prepare("UPDATE army_registry SET status = 'offline' WHERE status != 'offline' AND updated_at < ?").run(cutoff);
+      return r.changes;
+    },
     // Army orders and dispatcher state
     putOrder(order) {
       const ts = now();
@@ -330,6 +336,14 @@ function openStore(dbPath) {
     },
     countInProgressByNode(nodeId) {
       return conn.prepare('SELECT COUNT(*) as n FROM army_orders WHERE status = ? AND target_node_id = ?').get('in_progress', nodeId).n;
+    },
+    /** Mark orders as failed when deadline has passed (for deadline-exceeded background job). */
+    markOrdersDeadlineExceeded() {
+      const nowTs = now();
+      const r = conn.prepare(
+        "UPDATE army_orders SET status = 'failed', error = 'Deadline exceeded', updated_at = ? WHERE deadline IS NOT NULL AND deadline < ? AND status IN ('pending', 'in_progress')"
+      ).run(nowTs, nowTs);
+      return r.changes;
     },
   };
 }

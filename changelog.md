@@ -4,6 +4,20 @@ All notable changes to the Raise The OpenClaw project are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **README.md** — Rewritten for clarity and accuracy: new “What this repo is” and “Quick start” table, simplified architecture diagram (includes Army and Federation Hub), consolidated “What’s in the repo” and reference implementations, documentation table trimmed and reordered, changelog link fixed to CHANGELOG.md.
+
+### Added (Strong Army improvements)
+
+- **Army server tests** — `test/army-server.test.js`: GET /health, POST /army/register, GET /army/nodes (with ?skill=, ?unit=), GET/PATCH /army/nodes/:id, GET /army/units, POST/GET/PATCH /army/orders, GET /metrics. Uses temp SQLite DB; skips store-dependent tests when better-sqlite3 is not installed. `npm test` includes army-server.test.js.
+- **HTTPS for order delivery** — Army dispatcher uses `https` module when `ingest_url` is `https://...` so orders can be sent to TLS ingest endpoints.
+- **Registry TTL** — `ARMY_REGISTRY_TTL_SEC` is applied: background job every 60s marks nodes with `updated_at` older than TTL as `offline`. Store: `markStaleRegistryNodesOffline(ttlSec)` in mesh/store/client.js.
+- **Order deadline** — Background job every 60s marks orders as `failed` with `error: 'Deadline exceeded'` when `deadline` has passed and status is still `pending` or `in_progress`. Store: `markOrdersDeadlineExceeded()` in mesh/store/client.js.
+- **Mission Control proxy** — When proxying to Army, forwards `Authorization` and `X-Node-Id` headers so dashboard can authenticate when `ARMY_AUTH_BEARER` is set. GET /api/gateways now includes `hasArmy: true` when `OPENCLAW_MC_ARMY_URL` is set.
+- **Mission Control — Army section** — Army — Command Post is shown when proxy reports `hasArmy: true` (even with zero nodes). Refresh button to reload roster and orders. Orders table: Deadline and Result/Error columns. Section shows "No units" or "Army service unreachable" when appropriate.
+- **Docs** — army/README.md: ARMY_REGISTRY_TTL_SEC documented as implemented; new "Strong army / Operations" subsection (checklist, link to runbooks). OBSERVABILITY.md §5: note on scraping Army /metrics directly or via proxy.
+
 ### Added (Army strategy and job ID)
 
 - **Army order strategy** — Optional `strategy` field on orders (e.g. `research`, `default`, `attack`). Design: [OPENCLAW_ARMY_OF_OPENCLAW.md](OPENCLAW_ARMY_OF_OPENCLAW.md) §4.1; [OPENCLAW_ARMY_STRATEGIES.md](OPENCLAW_ARMY_STRATEGIES.md). Schema: `army_orders.strategy` (mesh/store/schema.sql and client.js with migration for existing DBs). Army server accepts `strategy` in POST body and includes it in the mesh memory message sent to the node. Mission Control: Issue order form has Strategy dropdown; Orders table has Strategy column.

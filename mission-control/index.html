@@ -1091,7 +1091,10 @@
     </section>
 
     <section class="bridge-section table-section" id="armySection" style="display: none;">
-      <h2 class="section-title">Army — Command Post</h2>
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+        <h2 class="section-title" style="margin: 0;">Army — Command Post</h2>
+        <button type="button" class="btn btn-secondary btn-sm" id="armyRefreshBtn" title="Refresh roster and orders">Refresh</button>
+      </div>
       <div class="panel anim-1" style="margin-bottom: 1.5rem;">
         <div class="panel-header">
           <span class="panel-title">Unit View</span>
@@ -1143,6 +1146,8 @@
                 <th>Target</th>
                 <th>Priority</th>
                 <th>From</th>
+                <th>Deadline</th>
+                <th>Result / Error</th>
               </tr>
             </thead>
             <tbody id="armyOrdersBody"></tbody>
@@ -1866,10 +1871,10 @@
       });
     });
 
-    function connectViaProxy(apiGateways) {
+    function connectViaProxy(apiGateways, opts) {
       proxyMode = true;
       gateways.length = 0;
-      apiGateways.forEach(g => gateways.push({ id: g.id, name: g.name, wsUrl: g.wsUrl, controlUiUrl: g.controlUiUrl || null, status: 'connecting', agents: 0, sessions: 0, channels: 0 }));
+      (apiGateways || []).forEach(g => gateways.push({ id: g.id, name: g.name, wsUrl: g.wsUrl, controlUiUrl: g.controlUiUrl || null, status: 'connecting', agents: 0, sessions: 0, channels: 0 }));
       const wsUrl = location.origin.replace(/^http/, 'ws') + '/ws';
       try {
         proxyWs = new WebSocket(wsUrl);
@@ -1880,7 +1885,7 @@
           renderOverview();
           renderTable();
           fetchFederationHealth();
-          loadArmySection();
+          if (opts && opts.hasArmy) loadArmySection();
         };
         proxyWs.onmessage = (ev) => {
           try {
@@ -2042,34 +2047,41 @@
       if (!tbody) return;
       const list = armyOrderFilter ? orders.filter((o) => o.status === armyOrderFilter) : orders;
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="color: var(--text-dim);">No orders.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="color: var(--text-dim);">No orders.</td></tr>';
         return;
       }
       tbody.innerHTML = list.slice(0, 50).map((o) => {
         const addresseeStr = typeof o.addressee === 'object' ? JSON.stringify(o.addressee) : String(o.addressee || '');
         const strategyStr = o.strategy ? escapeHtml(o.strategy) : '—';
-        return '<tr><td>' + escapeHtml(o.order_id) + '</td><td>' + escapeHtml(o.status) + '</td><td>' + strategyStr + '</td><td>' + escapeHtml(addresseeStr) + '</td><td>' + escapeHtml(o.target_node_id || '—') + '</td><td>' + escapeHtml(o.priority) + '</td><td>' + escapeHtml(o.from_node) + '</td></tr>';
+        const deadlineStr = o.deadline ? (new Date(o.deadline * 1000).toISOString().slice(0, 16) + ' UTC') : '—';
+        const resultErr = (o.result || o.error || '').toString().slice(0, 80);
+        const resultErrCell = resultErr ? ('<span title="' + escapeHtml((o.result || o.error || '').toString()) + '">' + escapeHtml(resultErr) + (resultErr.length >= 80 ? '…' : '') + '</span>') : '—';
+        return '<tr><td>' + escapeHtml(o.order_id) + '</td><td>' + escapeHtml(o.status) + '</td><td>' + strategyStr + '</td><td>' + escapeHtml(addresseeStr) + '</td><td>' + escapeHtml(o.target_node_id || '—') + '</td><td>' + escapeHtml(o.priority) + '</td><td>' + escapeHtml(o.from_node) + '</td><td>' + escapeHtml(deadlineStr) + '</td><td>' + resultErrCell + '</td></tr>';
       }).join('');
     }
 
     async function loadArmySection() {
       const section = document.getElementById('armySection');
       if (!section) return;
+      section.style.display = 'block';
       armyNodes = await fetchArmyNodes();
       if (armyNodes.length === 0) {
         const r = await fetch('/api/army/nodes').catch(() => null);
         if (r && r.status === 503) {
-          section.style.display = 'block';
           document.getElementById('armyUnitView').innerHTML = '<p class="text-dim">Army service unreachable. Set OPENCLAW_MC_ARMY_URL and run the Army server.</p>';
+        } else {
+          document.getElementById('armyUnitView').innerHTML = '<p class="text-dim">No units. Register nodes at <code>POST /army/register</code>.</p>';
         }
-        return;
+        renderArmyRoster([]);
+      } else {
+        renderArmyUnitView(armyNodes);
+        renderArmyRoster(armyNodes);
       }
-      section.style.display = 'block';
-      renderArmyUnitView(armyNodes);
-      renderArmyRoster(armyNodes);
       armyOrders = await fetchArmyOrders();
       renderArmyOrders(armyOrders);
     }
+
+    document.getElementById('armyRefreshBtn')?.addEventListener('click', () => loadArmySection());
 
     document.querySelectorAll('[data-army-order-filter]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -2139,8 +2151,8 @@
         const r = await fetch('/api/gateways');
         if (r.ok) {
           const d = await r.json();
-          if (d.gateways && d.gateways.length) {
-            connectViaProxy(d.gateways);
+          if ((d.gateways && d.gateways.length) || d.hasArmy) {
+            connectViaProxy(d.gateways || [], { hasArmy: !!d.hasArmy });
             return;
           }
         }

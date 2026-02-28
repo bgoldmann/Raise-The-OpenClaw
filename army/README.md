@@ -26,7 +26,7 @@ ARMY_AUTH_BEARER=secret ARMY_METRICS=1 node army/server.js 4080
 | `MESH_STORE_DB_PATH` | Path to SQLite file (same as mesh store; creates `army_registry` and `army_orders` tables). |
 | `PORT` / `ARMY_PORT` | HTTP port (default 4080). |
 | `ARMY_AUTH_BEARER` | If set, all `/army/*` requests require `Authorization: Bearer <token>`. |
-| `ARMY_REGISTRY_TTL_SEC` | Reserved for future: mark nodes offline after N seconds without heartbeat (default 600). |
+| `ARMY_REGISTRY_TTL_SEC` | Mark nodes offline after N seconds without heartbeat (default 600). Background job runs every 60s. |
 | `ARMY_METRICS` | Set to `0` to disable `GET /metrics`. |
 
 ## API
@@ -50,6 +50,14 @@ ARMY_AUTH_BEARER=secret ARMY_METRICS=1 node army/server.js 4080
 2. Server resolves target from registry (by gatewayId, then unit, then role/skill; prefers least loaded).
 3. Server sends a **mesh memory message** to the target's `ingest_url`: key `army.order.<orderId>`, value = order payload (includes optional `strategy`). Target node's bridge ingest writes it to local cache; agents can read and execute, then call `PATCH /army/orders/:orderId` with `status: "completed"` and `result`.
 4. Mission Control (or General) GETs `GET /army/orders?status=in_progress` and `GET /army/orders?status=completed` to show queue and results.
+
+## Strong army / Operations
+
+- Run the Army server with the **same DB** as the mesh store (`MESH_STORE_DB_PATH`).
+- Register every gateway (or agent) that should receive orders with a valid **`ingest_url`** (bridge webhook or gateway ingest).
+- Use the **Mission Control proxy** with `OPENCLAW_MC_ARMY_URL` set to the Army server base URL (e.g. `http://localhost:4080`) so the dashboard shows the Army — Command Post section.
+- Optional: set **`ARMY_AUTH_BEARER`** and send `Authorization: Bearer <token>` (and `X-Node-Id` for rank check when issuing orders); set **`ARMY_METRICS=1`** for Prometheus scraping.
+- Runbooks: [Add a node to the Army](docs/RUNBOOKS.md#add-a-node-to-the-army), [Issue first order](docs/RUNBOOKS.md#issue-first-order), [Recover from dispatcher/registry failure](docs/RUNBOOKS.md#recover-from-dispatcher--registry-failure).
 
 ## References
 

@@ -21,6 +21,7 @@
  */
 
 const http = require('http');
+const https = require('https');
 const path = require('path');
 const { openStore } = require(path.join(__dirname, '..', 'mesh', 'store', 'client.js'));
 
@@ -95,7 +96,8 @@ function sendOrderToNode(store, order, targetNode, cb) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body, 'utf8') },
   };
-  const req = require('http').request(opts, (res) => {
+  const lib = url.protocol === 'https:' ? https : http;
+  const req = lib.request(opts, (res) => {
     const chunks = [];
     res.on('data', (c) => chunks.push(c));
     res.on('end', () => {
@@ -216,37 +218,35 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET /army/nodes/:id
-  const nodeIdMatch = pathname.match(/^\/army\/nodes\/([^/]+)$/);
-  if (req.method === 'GET' && nodeIdMatch) {
-    const id = decodeURIComponent(nodeIdMatch[1]);
-    const node = store.getNode(id);
-    if (!node) {
-      send(res, 404, { error: 'Not found' });
+  // GET /army/nodes/:id and PATCH /army/nodes/:id
+  const nodesIdMatch = pathname.match(/^\/army\/nodes\/([^/]+)$/);
+  if (nodesIdMatch) {
+    const id = decodeURIComponent(nodesIdMatch[1]);
+    if (req.method === 'GET') {
+      const node = store.getNode(id);
+      if (!node) {
+        send(res, 404, { error: 'Not found' });
+        return;
+      }
+      send(res, 200, node);
       return;
     }
-    send(res, 200, node);
-    return;
-  }
-
-  // PATCH /army/nodes/:id
-  const patchNodeMatch = pathname.match(/^\/army\/nodes\/([^/]+)$/);
-  if (req.method === 'PATCH' && patchNodeMatch) {
-    const id = decodeURIComponent(patchNodeMatch[1]);
-    let body;
-    try {
-      body = JSON.parse(await parseBody(req));
-    } catch {
-      sendError(res, 400, 'Invalid JSON');
+    if (req.method === 'PATCH') {
+      let body;
+      try {
+        body = JSON.parse(await parseBody(req));
+      } catch {
+        sendError(res, 400, 'Invalid JSON');
+        return;
+      }
+      const updated = store.updateNode(id, body);
+      if (!updated) {
+        send(res, 404, { error: 'Not found' });
+        return;
+      }
+      send(res, 200, updated);
       return;
     }
-    const updated = store.updateNode(id, body);
-    if (!updated) {
-      send(res, 404, { error: 'Not found' });
-      return;
-    }
-    send(res, 200, updated);
-    return;
   }
 
   // GET /army/units
@@ -390,4 +390,22 @@ server.listen(PORT, () => {
   console.error('  POST /army/orders     GET /army/orders?status=');
   console.error('  GET  /metrics');
   if (!store) console.error('  WARN: Store not available (set MESH_STORE_DB_PATH)');
+  if (store && REGISTRY_TTL_SEC > 0) {
+    setInterval(() => {
+      try {
+        store.markStaleRegistryNodesOffline(REGISTRY_TTL_SEC);
+      } catch (e) {
+        console.error('Army registry TTL job error:', e.message);
+      }
+    }, 60000);
+  }
+  if (store) {
+    setInterval(() => {
+      try {
+        store.markOrdersDeadlineExceeded();
+      } catch (e) {
+        console.error('Army deadline-exceeded job error:', e.message);
+      }
+    }, 60000);
+  }
 });

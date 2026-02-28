@@ -4,7 +4,7 @@
   "description": "Curated recipes and reference implementations for OpenClaw mesh, Mission Control, bridge, and Army.",
   "private": true,
   "scripts": {
-    "test": "node --test test/mesh-messages.test.js test/mesh-cache.test.js test/bridge-ingest.test.js test/proxy-health.test.js",
+    "test": "node --test test/mesh-messages.test.js test/mesh-cache.test.js test/bridge-ingest.test.js test/proxy-health.test.js test/army-server.test.js",
     "serve:mc": "npx serve mission-control",
     "run:bridge": "node bridge/webhook-server.js 4077",
     "run:mesh-cli": "node scripts/mesh-cli.js"

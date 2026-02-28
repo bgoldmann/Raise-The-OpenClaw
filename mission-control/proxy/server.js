@@ -88,8 +88,10 @@ const server = http.createServer((req, res) => {
       else list = list.filter(g => !g._tenantId);
     }
     list = list.map(g => ({ id: g.id, name: g.name, wsUrl: g.wsUrl, controlUiUrl: g.controlUiUrl || null }));
+    const payload = { gateways: list };
+    if (ARMY_URL) payload.hasArmy = true;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ gateways: list }));
+    res.end(JSON.stringify(payload));
     return;
   }
   if (url.pathname === '/api/federation/health') {
@@ -119,6 +121,9 @@ const server = http.createServer((req, res) => {
     const lib = targetUrl.startsWith('https') ? require('https') : require('http');
     const method = req.method;
     const body = method === 'POST' || method === 'PATCH' ? [] : null;
+    const forwardHeaders = { 'Content-Type': 'application/json' };
+    if (req.headers.authorization) forwardHeaders['Authorization'] = req.headers.authorization;
+    if (req.headers['x-node-id']) forwardHeaders['X-Node-Id'] = req.headers['x-node-id'];
     if (body) {
       req.on('data', (c) => body.push(c));
       req.on('end', () => {
@@ -128,7 +133,7 @@ const server = http.createServer((req, res) => {
           port: opts.port || (opts.protocol === 'https:' ? 443 : 80),
           path: opts.pathname + (opts.search || ''),
           method,
-          headers: { 'Content-Type': 'application/json' },
+          headers: forwardHeaders,
         };
         if (body.length) reqOpts.headers['Content-Length'] = Buffer.concat(body).length;
         const proxyReq = lib.request(reqOpts, (upstream) => {
@@ -147,7 +152,15 @@ const server = http.createServer((req, res) => {
         proxyReq.end();
       });
     } else {
-      lib.get(targetUrl, (upstream) => {
+      const opts = new URL(targetUrl);
+      const getOpts = {
+        hostname: opts.hostname,
+        port: opts.port || (opts.protocol === 'https:' ? 443 : 80),
+        path: opts.pathname + (opts.search || ''),
+        method: 'GET',
+        headers: forwardHeaders,
+      };
+      lib.request(getOpts, (upstream) => {
         const chunks = [];
         upstream.on('data', (c) => chunks.push(c));
         upstream.on('end', () => {
@@ -157,7 +170,7 @@ const server = http.createServer((req, res) => {
       }).on('error', () => {
         res.writeHead(503, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Army service unreachable' }));
-      });
+      }).end();
     }
     return;
   }

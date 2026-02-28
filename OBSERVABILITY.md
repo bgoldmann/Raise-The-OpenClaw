@@ -72,6 +72,8 @@ When the [Army server](army/README.md) is running, set `ARMY_METRICS=1` (default
 
 Set `ARMY_METRICS=0` to disable. Use for capacity planning and alerting (e.g. alert when `army_orders_failed` increases or `army_registry_nodes` drops).
 
+Scrape Army **GET /metrics** from the Army server directly. Optionally, expose it via the Mission Control proxy (e.g. proxy route `/api/army/metrics` → Army `/metrics`) so a single scrape endpoint can collect gateway proxy + Army metrics.
+
 ---
 
 ## 6. Alerting

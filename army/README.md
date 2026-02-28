@@ -39,7 +39,7 @@ ARMY_AUTH_BEARER=secret ARMY_METRICS=1 node army/server.js 4080
 | GET | `/army/nodes/:id` | Get one node. |
 | PATCH | `/army/nodes/:id` | Update node (e.g. `status`, `capacity`, `ingest_url`). |
 | GET | `/army/units` | List distinct unit/platoon/theater. |
-| POST | `/army/orders` | Submit order. Body: `orderId?`, `type?`, `addressee` (object or string), `payload`, `priority?`, `deadline?`, `from?`. Optional header `X-Node-Id` for issuer (rank check when auth enabled). Returns 202 + order; dispatcher sends to target and sets status to `in_progress` or `failed`. |
+| POST | `/army/orders` | Submit order. Body: `orderId?`, `type?`, `addressee` (object or string), `payload`, `priority?`, `deadline?`, `from?`, `strategy?` (e.g. `research`, `default`). Optional header `X-Node-Id` for issuer (rank check when auth enabled). Returns 202 + order; dispatcher sends to target and sets status to `in_progress` or `failed`. |
 | GET | `/army/orders` | List orders. Query: `?status=pending|in_progress|completed|failed`. |
 | PATCH | `/army/orders/:orderId` | Update order (e.g. `status: "completed"`, `result`, `error`) for report_up. |
 | GET | `/metrics` | Prometheus-style: `army_orders_total`, `army_orders_failed`, `army_registry_nodes`, `army_dispatcher_queue_depth`, `army_dispatch_errors`. |
@@ -48,7 +48,7 @@ ARMY_AUTH_BEARER=secret ARMY_METRICS=1 node army/server.js 4080
 
 1. Command (General) or Mission Control POSTs to `POST /army/orders` with `addressee` (e.g. `{ role: "research" }` or `{ gatewayId: "sec" }`).
 2. Server resolves target from registry (by gatewayId, then unit, then role/skill; prefers least loaded).
-3. Server sends a **mesh memory message** to the target's `ingest_url`: key `army.order.<orderId>`, value = order payload. Target node's bridge ingest writes it to local cache; agents can read and execute, then call `PATCH /army/orders/:orderId` with `status: "completed"` and `result`.
+3. Server sends a **mesh memory message** to the target's `ingest_url`: key `army.order.<orderId>`, value = order payload (includes optional `strategy`). Target node's bridge ingest writes it to local cache; agents can read and execute, then call `PATCH /army/orders/:orderId` with `status: "completed"` and `result`.
 4. Mission Control (or General) GETs `GET /army/orders?status=in_progress` and `GET /army/orders?status=completed` to show queue and results.
 
 ## References

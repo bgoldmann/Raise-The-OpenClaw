@@ -41,6 +41,10 @@ The dashboard detects the proxy via `GET /api/gateways`, loads the gateway list 
 
 - Staggered card entrance, status pulse, scan line, floating header, card hover, sidebar and modal transitions.
 
+## Jobs data contract
+
+Gateway-provided **jobs** (e.g. from live WebSocket or proxy) should have a stable **`id`** (jobId) so the dashboard can display and reference them. When a job is created from an Army order, the job payload should include **`orderId`** so the dashboard can link job ↔ order (e.g. show "Order: ord-123" in the Jobs panel). The dashboard displays job id and optional orderId in each job row.
+
 ## Protocol integration
 
 The dashboard implements the OpenClaw Gateway WebSocket protocol: first frame is `connect` (after optional `connect.challenge`); then it calls `status`, `agent.list`, `sessions.list`, `channels.list` and displays results; it also handles events (e.g. `exec.approval.requested`). For gateways that require device auth, use the backend proxy (which can perform pairing once and hold tokens).

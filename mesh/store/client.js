@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS army_orders (
   max_retries INTEGER DEFAULT 3,
   result TEXT,
   error TEXT,
+  strategy TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -91,6 +92,13 @@ function openStore(dbPath) {
     if (cols.every((c) => c.name !== 'model_ranking')) {
       try {
         conn.exec('ALTER TABLE army_registry ADD COLUMN model_ranking TEXT');
+      } catch (_) {}
+    }
+    // Migration: add strategy to existing army_orders if missing
+    const orderCols = conn.prepare("PRAGMA table_info(army_orders)").all();
+    if (orderCols.every((c) => c.name !== 'strategy')) {
+      try {
+        conn.exec('ALTER TABLE army_orders ADD COLUMN strategy TEXT');
       } catch (_) {}
     }
   } else {
@@ -254,10 +262,10 @@ function openStore(dbPath) {
       const addresseeStr = typeof order.addressee === 'string' ? order.addressee : JSON.stringify(order.addressee || {});
       const payloadStr = typeof order.payload === 'string' ? order.payload : JSON.stringify(order.payload || {});
       conn.prepare(
-        `INSERT INTO army_orders (order_id, type, addressee, payload, priority, deadline, from_node, ts, status, target_node_id, retry_count, max_retries, result, error, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO army_orders (order_id, type, addressee, payload, priority, deadline, from_node, ts, status, target_node_id, retry_count, max_retries, result, error, strategy, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(order_id) DO UPDATE SET addressee=excluded.addressee, payload=excluded.payload, priority=excluded.priority, deadline=excluded.deadline,
-         status=excluded.status, target_node_id=excluded.target_node_id, retry_count=excluded.retry_count, result=excluded.result, error=excluded.error, updated_at=excluded.updated_at`
+         status=excluded.status, target_node_id=excluded.target_node_id, retry_count=excluded.retry_count, result=excluded.result, error=excluded.error, strategy=excluded.strategy, updated_at=excluded.updated_at`
       ).run(
         order.orderId,
         order.type || 'task',
@@ -273,6 +281,7 @@ function openStore(dbPath) {
         order.max_retries ?? 3,
         order.result ?? null,
         order.error ?? null,
+        order.strategy ?? null,
         order.created_at ?? ts,
         ts
       );

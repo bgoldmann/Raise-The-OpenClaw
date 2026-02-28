@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS army_orders (
   max_retries INTEGER DEFAULT 3,
   result TEXT,
   error TEXT,
+  strategy TEXT,             -- optional: e.g. research, default
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );

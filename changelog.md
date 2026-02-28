@@ -4,6 +4,11 @@ All notable changes to the Raise The OpenClaw project are documented here.
 
 ## [Unreleased]
 
+### Added (Army strategy and job ID)
+
+- **Army order strategy** — Optional `strategy` field on orders (e.g. `research`, `default`, `attack`). Design: [OPENCLAW_ARMY_OF_OPENCLAW.md](OPENCLAW_ARMY_OF_OPENCLAW.md) §4.1; [OPENCLAW_ARMY_STRATEGIES.md](OPENCLAW_ARMY_STRATEGIES.md). Schema: `army_orders.strategy` (mesh/store/schema.sql and client.js with migration for existing DBs). Army server accepts `strategy` in POST body and includes it in the mesh memory message sent to the node. Mission Control: Issue order form has Strategy dropdown; Orders table has Strategy column.
+- **Jobs identified by ID; optional orderId** — Gateway-provided jobs should have a stable `id` (jobId); when a job is created from an Army order it should include `orderId`. Mission Control Jobs panel displays job id and optional "Order: …" link. Contract documented in [mission-control/README.md](mission-control/README.md) and [OPENCLAW_MISSION_CONTROL_DASHBOARD.md](OPENCLAW_MISSION_CONTROL_DASHBOARD.md).
+
 ### Added (Improvement plan: security, tests, docs, robustness)
 
 - **Security (Mission Control)** — All user- and gateway-sourced strings are escaped with `escapeHtml()` in overview cards, gateways table, detail sidebar, Working/Tasks/Jobs/Against/Approvals/Activity panels, and Army section. Control UI URLs are validated with `safeHttpUrl()` (http/https only) before use in links; `rel="noopener noreferrer"` on external links.

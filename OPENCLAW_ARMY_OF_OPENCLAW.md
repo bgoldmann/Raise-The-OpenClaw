@@ -140,7 +140,7 @@ For consistent **discovery/routing** (registry, dispatcher) and **least-privileg
 
 ## 4. Orders (task format and flow)
 
-- **Order:** Structured message (over bridge or dispatcher) with at least: `orderId`, `type` (e.g. task, query, report-request), `addressee` (gatewayId, unit, or role), `payload` (task text, params), `priority`, `deadline`, `from` (issuer node/id).
+- **Order:** Structured message (over bridge or dispatcher) with at least: `orderId`, `type` (e.g. task, query, report-request), `addressee` (gatewayId, unit, or role), `payload` (task text, params), `priority`, `deadline`, `from` (issuer node/id). Optional **strategy** names how to execute the order (e.g. research, default).
 - **Flow:** Command (or any authorized node) **issues order** → **Dispatcher** or bridge **routes** to addressee(s). Addressee gateway/agent **executes** and **reports** (result) back via bridge or store. Reports consumed by Mission Control and by the issuer.
 - **Existing bridge:** Today CEO posts a task to the bridge and Sec receives it ([OPENCLAW_MAC_MINI_CEO_PROMPTS.md](OPENCLAW_MAC_MINI_CEO_PROMPTS.md) §4). Orders generalize this: same bridge (or dedicated “orders” channel), with a **structured envelope** (orderId, addressee, payload, priority) so a **dispatcher** or receiving gateway can route and track.
 
@@ -156,6 +156,14 @@ For consistent **discovery/routing** (registry, dispatcher) and **least-privileg
 | `deadline` | number (optional) | Unix timestamp. |
 | `from` | string | Issuer node or gateway id. |
 | `ts` | number | Unix timestamp. |
+| `strategy` | string (optional) | Named execution approach: e.g. `research`, `default`; see [OPENCLAW_ARMY_STRATEGIES.md](OPENCLAW_ARMY_STRATEGIES.md). |
+
+### 4.1 Strategy (execution approach)
+
+- **Strategy** = named execution approach for an order: how to run the task (e.g. research vs. generic task). Enables consistent behavior and routing (e.g. "research" strategy → use research MOS, specific steps). No OpenClaw protocol change; this is order payload + optional strategy metadata.
+- **First concrete strategy: research** — Addressee is typically by role/skill (e.g. `{ "role": "research" }`). Payload is interpreted as a question or topic; optional params (e.g. depth, sources) can be in payload. The receiving node (Specialist with research MOS) follows research steps (gather, synthesize, report).
+- **Default** — Omit `strategy` or set `strategy: "default"` for generic task execution.
+- **Future strategies** (e.g. tactical/attack) can be added with the same pattern; see [OPENCLAW_ARMY_STRATEGIES.md](OPENCLAW_ARMY_STRATEGIES.md).
 
 ---
 
@@ -233,6 +241,7 @@ Data source: registry API + dispatcher API (or store where dispatcher writes ord
 
 | Doc | Purpose |
 |-----|---------|
+| [OPENCLAW_ARMY_STRATEGIES.md](OPENCLAW_ARMY_STRATEGIES.md) | Strategy names and semantics (research, default, attack/tactical placeholder). |
 | [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md) | Copy-paste SOUL prompts per rank (General, Colonel, Captain, Sergeant, Specialist) and skills/tools. |
 | [PRD.md](PRD.md) | Mesh, shared memory, skills, federation hub. |
 | [OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md) | Intel share: memory via hub (store or share endpoint); rank/unit/theater push and receive. |

@@ -81,6 +81,7 @@ function sendOrderToNode(store, order, targetNode, cb) {
       priority: order.priority,
       from: order.from_node,
       ts: order.ts,
+      ...(order.strategy != null && order.strategy !== '' && { strategy: order.strategy }),
     },
     nodeId: order.from_node,
     ts: order.ts,
@@ -277,6 +278,7 @@ const server = http.createServer(async (req, res) => {
       priority: body.priority || 'normal',
       deadline: body.deadline,
       from: body.from || req.headers['x-node-id'] || 'unknown',
+      strategy: body.strategy,
       status: 'pending',
       max_retries: body.max_retries ?? 3,
     });

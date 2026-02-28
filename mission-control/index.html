@@ -1138,6 +1138,7 @@
               <tr>
                 <th>Order ID</th>
                 <th>Status</th>
+                <th>Strategy</th>
                 <th>Addressee</th>
                 <th>Target</th>
                 <th>Priority</th>
@@ -1168,6 +1169,15 @@
                 <option value="low">Low</option>
                 <option value="normal" selected>Normal</option>
                 <option value="high">High</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="orderStrategy">Strategy (optional)</label>
+              <select id="orderStrategy">
+                <option value="">—</option>
+                <option value="default">default</option>
+                <option value="research">research</option>
+                <option value="attack">attack</option>
               </select>
             </div>
             <div class="form-group">
@@ -1395,7 +1405,7 @@
     const MOCK_JOBS = [
       { id: 'j1', type: 'sync', status: 'running', gatewayId: 'ceo', duration: '2m', started: '2m ago' },
       { id: 'j2', type: 'backup', status: 'queued', gatewayId: 'sec', duration: '—', started: '—' },
-      { id: 'j3', type: 'report', status: 'completed', gatewayId: 'ceo', duration: '45s', started: '12m ago' },
+      { id: 'j3', type: 'report', status: 'completed', gatewayId: 'ceo', duration: '45s', started: '12m ago', orderId: 'ord-example-1' },
       { id: 'j4', type: 'webhook', status: 'failed', gatewayId: 'sec', duration: '—', started: '1h ago' },
     ];
 
@@ -1495,14 +1505,19 @@
     function renderJobs() {
       const el = document.getElementById('jobsPanel');
       const jobs = mergedJobs();
-      el.innerHTML = jobs.map(j => `
+      el.innerHTML = jobs.map((j) => {
+        const jobId = j.id != null && j.id !== '' ? escapeHtml(String(j.id)) : '—';
+        const orderPart = j.orderId ? '<span style="color:var(--text-dim);font-size:0.85rem"> Order: ' + escapeHtml(String(j.orderId)) + '</span>' : '';
+        return `
         <div class="job-row">
+          <span style="color:var(--text-dim);font-size:0.85rem" title="Job ID">${jobId}</span>
           <span>${escapeHtml(j.type || '—')}</span>
           <span class="job-badge ${escapeHtml(j.status)}">${escapeHtml(j.status)}</span>
           <span>${escapeHtml(gatewayName(j.gatewayId))}</span>
           <span style="color:var(--text-dim)">${escapeHtml(j.duration || '—')} ${j.started ? escapeHtml(String(j.started)) : ''}</span>
-        </div>
-      `).join('');
+          ${orderPart}
+        </div>`;
+      }).join('');
     }
 
     function renderAgainst() {
@@ -2027,12 +2042,13 @@
       if (!tbody) return;
       const list = armyOrderFilter ? orders.filter((o) => o.status === armyOrderFilter) : orders;
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="color: var(--text-dim);">No orders.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="color: var(--text-dim);">No orders.</td></tr>';
         return;
       }
       tbody.innerHTML = list.slice(0, 50).map((o) => {
         const addresseeStr = typeof o.addressee === 'object' ? JSON.stringify(o.addressee) : String(o.addressee || '');
-        return '<tr><td>' + escapeHtml(o.order_id) + '</td><td>' + escapeHtml(o.status) + '</td><td>' + escapeHtml(addresseeStr) + '</td><td>' + escapeHtml(o.target_node_id || '—') + '</td><td>' + escapeHtml(o.priority) + '</td><td>' + escapeHtml(o.from_node) + '</td></tr>';
+        const strategyStr = o.strategy ? escapeHtml(o.strategy) : '—';
+        return '<tr><td>' + escapeHtml(o.order_id) + '</td><td>' + escapeHtml(o.status) + '</td><td>' + strategyStr + '</td><td>' + escapeHtml(addresseeStr) + '</td><td>' + escapeHtml(o.target_node_id || '—') + '</td><td>' + escapeHtml(o.priority) + '</td><td>' + escapeHtml(o.from_node) + '</td></tr>';
       }).join('');
     }
 
@@ -2087,12 +2103,14 @@
           console.warn('[Mission Control] Issue order payload not valid JSON, using as string:', err);
         }
       }
+      const strategyVal = document.getElementById('orderStrategy').value.trim();
       const body = {
         addressee,
         payload,
         priority: document.getElementById('orderPriority').value,
         from: document.getElementById('orderFrom').value.trim() || undefined,
       };
+      if (strategyVal) body.strategy = strategyVal;
       try {
         const r = await fetch('/api/army/orders', {
           method: 'POST',

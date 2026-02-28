@@ -73,6 +73,35 @@ Implementation can start **flat**: Command → Squads (gateways). Add Platoon/Ba
 
 No change to OpenClaw agent model; ranks and units are **metadata** in the registry and in SOUL/context as needed.
 
+### 3.2 Skills and tools by rank
+
+For consistent **discovery/routing** (registry, dispatcher) and **least-privilege execution**, each rank has defined **advertised skills (MOS)** and **allowed/forbidden tools**. See [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md) for copy-paste SOUL prompts per rank.
+
+**Registry skills (MOS) by rank** — used for routing and discovery (`GET /army/nodes?skill=research`):
+
+| Rank | Advertised skills (MOS) | Purpose |
+|------|--------------------------|---------|
+| General | `command`, `orders`, `synthesize` | Command node issues orders; synthesizes reports from below. |
+| Colonel | `theater_lead`, `delegate`, `report_up` | Theater lead delegates to Captains; reports up. |
+| Captain | `platoon_lead`, `delegate`, `report_up` | Platoon lead delegates to Sergeants; reports up. |
+| Sergeant | `squad_lead`, `delegate`, `report_up` (or execute) | Squad lead delegates to agents on gateway or executes. |
+| Specialist | One or more of `research`, `coding`, `triage`, `notes`, etc. | Task execution only; no delegation. |
+
+**Tools by rank** — OpenClaw and custom Army tools:
+
+| Rank | Allowed OpenClaw tools | Custom Army tools | Forbidden |
+|------|------------------------|-------------------|-----------|
+| General | `memory`; optional `sessions_spawn` to local staff agents | `issue_order` (POST to dispatcher) | exec, browser |
+| Colonel | `memory` | receive orders; `forward_order` (delegate down); `report_up` | exec |
+| Captain | `memory` | receive orders; `forward_order`; `report_up` | exec |
+| Sergeant | `memory`; `sessions_spawn` to local agents; optional exec if squad does coding | receive orders; `report_up` | (exec only if MOS allows) |
+| Specialist | `memory`; execute tools by MOS (research = web/search; coding = exec in sandbox; triage = memory + reply) | receive orders; `report_up` | order issuance, delegation |
+
+- **Issue order:** General (and optionally Colonel/Captain) use a **tool or script** that POSTs an order to the dispatcher (orderId, addressee, payload, priority). Documented in [OPENCLAW_ARMY_OF_OPENCLAW.md](OPENCLAW_ARMY_OF_OPENCLAW.md) §6.
+- **Report up:** Sergeants and Specialists submit results via bridge or PUT to store so the issuer and Mission Control consume them.
+
+**Shared mesh skills (by rank/unit):** Skills (SOUL snippets, procedures) can be shared across the mesh via federation hub or mesh store ([OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md](OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md)). Rank and unit/theater can restrict **who receives** which shared skills (e.g. “Report format for Sergeants,” “Order acknowledgment template for Captains”) using scope or `targetUnit` / `rank` in intel-share ([OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md)).
+
 ---
 
 ## 4. Orders (task format and flow)
@@ -155,6 +184,7 @@ Data source: registry API + dispatcher API (or store where dispatcher writes ord
 
 | Doc | Purpose |
 |-----|---------|
+| [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md) | Copy-paste SOUL prompts per rank (General, Colonel, Captain, Sergeant, Specialist) and skills/tools. |
 | [PRD.md](PRD.md) | Mesh, shared memory, skills, federation hub. |
 | [OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md) | Intel share: memory via hub (store or share endpoint); rank/unit/theater push and receive. |
 | [OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md](OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md) | Discovery, skill descriptors, Option D registry over bridge. |

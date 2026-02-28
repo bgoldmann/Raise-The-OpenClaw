@@ -128,7 +128,9 @@ All runnable with **Node.js** (no extra deps for mesh/bridge; Mission Control pr
 | [Federation hub](OPENCLAW_MESH_FEDERATION_HUB.md) | Connect your mesh to external meshes: topology, config, filtering, provenance, optional signing; reference impl in [federation-hub/](federation-hub/). |
 | [Federation hub intel share](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md) | Memory via store or POST /federation/share; Army ranking and unit/theater; share endpoint, store-to-bridge. |
 | [Army of OpenClaw](OPENCLAW_ARMY_OF_OPENCLAW.md) | US Army–style hierarchy: chain of command, ranks/units, orders, registry, dispatcher, Mission Control as command post; design only. |
+| [Army SOUL by rank](OPENCLAW_ARMY_SOUL_BY_RANK.md) | Copy-paste SOUL prompts per rank (General, Colonel, Captain, Sergeant, Specialist); skills (MOS) and tools by rank. |
 | [Runbooks](docs/RUNBOOKS.md) | Add gateway, rotate token, recover mesh store, scale bridge. |
+| [30-day X tweet plan](docs/30_DAY_TWEET_PLAN.md) | Content plan for X (Twitter): goals, pillars, calendar, two tweet drafts, traffic tips. |
 
 ---
 

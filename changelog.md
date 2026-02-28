@@ -4,6 +4,23 @@ All notable changes to the Raise The OpenClaw project are documented here.
 
 ## [Unreleased]
 
+### Added (Army skills and tools per rank)
+
+- **OPENCLAW_ARMY_SOUL_BY_RANK.md** — Copy-paste SOUL prompts per Army rank (General, Colonel, Captain, Sergeant, Specialist): identity, authority, delegation, skills (MOS), tools/constraints; Specialist variants (research, coding, triage, notes); bindings and config notes; references to Army design and intel-share.
+- **OPENCLAW_ARMY_OF_OPENCLAW.md** — New §3.2 Skills and tools by rank: tables for registry skills (MOS) by rank and tools by rank (OpenClaw + custom issue_order/report_up); note on shared mesh skills by rank/unit; reference to OPENCLAW_ARMY_SOUL_BY_RANK.md. §9 References: added OPENCLAW_ARMY_SOUL_BY_RANK.md.
+- **README.md** — Documentation table: added [Army SOUL by rank](OPENCLAW_ARMY_SOUL_BY_RANK.md).
+
+### Added (30-day X tweet plan)
+
+- **docs/30_DAY_TWEET_PLAN.md** — 30-day X (Twitter) content plan for Raise The OpenClaw: goals, audience, content pillars, calendar (Days 1–30), two ready-to-post tweet drafts, traffic/engagement tips, suggested weekly distribution, and link placeholders for repo/GETTING_STARTED/Mission Control/clawdocs.org.
+- **README.md** — Documentation table: added [30-day X tweet plan](docs/30_DAY_TWEET_PLAN.md).
+
+### Changed (30-day X tweet plan)
+
+- **docs/30_DAY_TWEET_PLAN.md** — Replaced placeholders with repo links: https://github.com/bgoldmann/Raise-The-OpenClaw (repo, GETTING_STARTED, Mission Control) in tweet drafts and "Links for tweets" section.
+- **docs/30_DAY_TWEET_PLAN.md** — Added @OpenClaw and hashtags to both tweet drafts (#OpenClaw #AIagents #opensource #selfhosted #LocalAI); added @mentions tip and "Suggested tags (X)" section.
+- **docs/30_DAY_TWEET_PLAN.md** — Added "All 30 tweet drafts (Day 1–30)": full copy-paste tweets for each day (intro/wonder, how it works, deep dives, use cases, recap/CTA) with repo links, @OpenClaw, and hashtags.
+
 ### Added (Federation Hub Intel Share)
 
 - **OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md** — Design for passing memory (intel/logistics) to the Federation Hub via store or `POST /federation/share`, then sharing to internal mesh (bridge/store) and optionally to external meshes; Army-style ranking and unit/theater control who can push and who can receive. Data model: optional `audience`, `targetUnit`, `targetTheater` in wrapper or `value._meta`.

@@ -104,8 +104,9 @@ Everything is **documentation-first** with **reference code** where it helps: no
 | **[federation-hub/](federation-hub/)** | **Federation Hub** — connect your mesh to other meshes: `POST /federation/in` (inbound), `POST /federation/share` (internal intel share), outbound (poll store → POST to external), optional store-to-bridge fan-out, optional signing, `GET /metrics`. Config: `config.example.json`; design: [OPENCLAW_MESH_FEDERATION_HUB.md](OPENCLAW_MESH_FEDERATION_HUB.md), [OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md). |
 | **[mesh/store/api-server.js](mesh/store/api-server.js)** | **Mesh store HTTP API** — GET/PUT list memory and skills; optional auth and rate limiting. Run with `MESH_STORE_DB_PATH`; see [mesh/store/README.md](mesh/store/README.md). |
 | **[scripts/mesh-cli.js](scripts/mesh-cli.js)** | **Mesh CLI** — get/put/list memory and skills (local cache or `MESH_STORE_URL`). |
+| **[army/server.js](army/server.js)** | **Army registry + dispatcher** — POST /army/register, GET /army/nodes, POST /army/orders; resolves addressee, sends order to target ingest_url; failover, metrics. See [army/README.md](army/README.md). Mission Control shows **Army — Command Post** (unit view, roster, orders queue, issue order) when proxy has `OPENCLAW_MC_ARMY_URL`. |
 
-All runnable with **Node.js** (no extra deps for mesh/bridge; Mission Control proxy uses `ws`; optional `better-sqlite3` for mesh store client).
+All runnable with **Node.js** (no extra deps for mesh/bridge; Mission Control proxy uses `ws`; optional `better-sqlite3` for mesh store and Army).
 
 ---
 
@@ -127,8 +128,8 @@ All runnable with **Node.js** (no extra deps for mesh/bridge; Mission Control pr
 | [Enterprise expand](docs/ENTERPRISE_EXPAND.md) | Multi-tenancy, public APIs, rate limits, message signing. |
 | [Federation hub](OPENCLAW_MESH_FEDERATION_HUB.md) | Connect your mesh to external meshes: topology, config, filtering, provenance, optional signing; reference impl in [federation-hub/](federation-hub/). |
 | [Federation hub intel share](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md) | Memory via store or POST /federation/share; Army ranking and unit/theater; share endpoint, store-to-bridge. |
-| [Army of OpenClaw](OPENCLAW_ARMY_OF_OPENCLAW.md) | US Army–style hierarchy: chain of command, ranks/units, orders, registry, dispatcher, Mission Control as command post; design only. |
-| [Army SOUL by rank](OPENCLAW_ARMY_SOUL_BY_RANK.md) | Copy-paste SOUL prompts per rank (General, Colonel, Captain, Sergeant, Specialist); skills (MOS) and tools by rank. |
+| [Army of OpenClaw](OPENCLAW_ARMY_OF_OPENCLAW.md) | US Army–style hierarchy: chain of command, ranks/units, orders, registry, dispatcher, Mission Control as command post; recommended LLM model(s) by rank and optional per-node model_ranking. |
+| [Army SOUL by rank](OPENCLAW_ARMY_SOUL_BY_RANK.md) | Copy-paste SOUL prompts per rank (General, Colonel, Captain, Sergeant, Specialist); skills (MOS), tools by rank; see Army doc for recommended model(s) by rank. |
 | [Runbooks](docs/RUNBOOKS.md) | Add gateway, rotate token, recover mesh store, scale bridge. |
 | [30-day X tweet plan](docs/30_DAY_TWEET_PLAN.md) | Content plan for X (Twitter): goals, pillars, calendar, two tweet drafts, traffic tips. |
 

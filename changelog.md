@@ -4,6 +4,27 @@ All notable changes to the Raise The OpenClaw project are documented here.
 
 ## [Unreleased]
 
+### Added (LLM model rankings per rank and per node)
+
+- **OPENCLAW_ARMY_OF_OPENCLAW.md** — §3.2: table "Recommended LLM model(s) by rank" and paragraph on quality/cost and SOUL alignment; §5: registry row field `model_ranking` (optional array of model ids). Per-node `model_ranking` overrides rank default when set.
+- **OPENCLAW_ARMY_SOUL_BY_RANK.md** — §1: reference to recommended model(s) by rank in Army doc.
+- **Army registry** — Optional `model_ranking` (JSON array of model ids) in schema, store client (registerNode, getNode, listNodes, updateNode), migration for existing DBs, army server (POST /army/register, PATCH /army/nodes/:id), [army/README.md](army/README.md).
+- **Mission Control — Army Roster** — New column "Model(s)" showing per-node model ranking when present.
+
+### Added (Army of OpenClaw — implementation)
+
+- **army/** — Reference implementation: registry API (POST /army/register, GET /army/nodes, GET /army/nodes/:id, PATCH /army/nodes/:id, GET /army/units) and dispatcher (POST /army/orders, GET /army/orders, PATCH /army/orders/:orderId). Uses mesh store SQLite (army_registry, army_orders tables). Resolves addressee by gatewayId, unit, or role/skill; sends order as mesh memory message to target ingest_url; failover to next candidate on delivery failure. Optional ARMY_AUTH_BEARER, rank check for order issuance; GET /metrics (army_orders_total, army_orders_failed, army_registry_nodes, army_dispatcher_queue_depth, army_dispatch_errors). [army/README.md](army/README.md).
+- **mesh/store** — Army schema and client: army_registry and army_orders tables in schema.sql and client.js (registerNode, getNode, listNodes, listUnits, updateNode, putOrder, getOrder, listOrders, updateOrder, countOrdersByStatus, countInProgressByNode).
+- **Mission Control — Army Command Post** — Dashboard section "Army — Command Post" when proxy has OPENCLAW_MC_ARMY_URL: Unit view (group by theater/platoon), Roster table, Orders queue with status filter, Issue order form. Proxy forwards /api/army/* to Army server. [mission-control/proxy/README.md](mission-control/proxy/README.md) updated.
+- **OPENCLAW_ARMY_OF_OPENCLAW.md** — Registry freshness (heartbeat/TTL), routing rules (priority, least loaded), §8b Security (order issuer check, audit), order data-flow diagram, escalation (refused/failed orders, who can reassign), reference implementation links.
+- **OPENCLAW_ARMY_SOUL_BY_RANK.md** — Refuse-order protocol (report_up with status "refused", reason); Specialist variants Trading (7.5), Family (7.6).
+- **OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md** — Optional intel TTL/expiration (value._meta.expiresAt) and classification in data model.
+- **OBSERVABILITY.md** — §5 Army metrics (GET /metrics, army_* counters and gauges; alerting note).
+- **docs/RUNBOOKS.md** — Add a node to the Army, Issue first order, Recover from dispatcher/registry failure.
+- **GETTING_STARTED.md** — §6b Army quick start (run server, register squad, Mission Control, issue order).
+- **README.md** — Reference implementations table: army/server.js and Army Command Post in Mission Control.
+- **PRD_EXPANSION.md** — §12 Army: reference implementation (army/, Mission Control Army section).
+
 ### Added (Army skills and tools per rank)
 
 - **OPENCLAW_ARMY_SOUL_BY_RANK.md** — Copy-paste SOUL prompts per Army rank (General, Colonel, Captain, Sergeant, Specialist): identity, authority, delegation, skills (MOS), tools/constraints; Specialist variants (research, coding, triage, notes); bindings and config notes; references to Army design and intel-share.

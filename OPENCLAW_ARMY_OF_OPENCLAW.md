@@ -63,6 +63,30 @@ flowchart TB
 
 Implementation can start **flat**: Command → Squads (gateways). Add Platoon/Battalion/Theater as **tags** (e.g. `unit`, `platoon`, `theater`) in the registry and in orders for routing.
 
+**Order data flow (Command → Squad):**
+
+```mermaid
+flowchart LR
+  Command[Command / General]
+  IssueOrder[issue_order tool]
+  Dispatcher[Dispatcher]
+  Registry[Registry]
+  Bridge[Bridge / ingest]
+  Squad[Squad gateway]
+  Store[Store]
+  MC[Mission Control]
+  Command -->|POST order| IssueOrder
+  IssueOrder -->|POST /army/orders| Dispatcher
+  Dispatcher -->|resolve addressee| Registry
+  Registry -->|target node| Dispatcher
+  Dispatcher -->|POST memory message| Bridge
+  Bridge --> Squad
+  Squad -->|report_up| Store
+  Store --> MC
+  Dispatcher -->|order state| Store
+  MC -->|GET orders, nodes| Dispatcher
+```
+
 ---
 
 ## 3. Ranks and roles (authority and capability)
@@ -97,6 +121,16 @@ For consistent **discovery/routing** (registry, dispatcher) and **least-privileg
 | Sergeant | `memory`; `sessions_spawn` to local agents; optional exec if squad does coding | receive orders; `report_up` | (exec only if MOS allows) |
 | Specialist | `memory`; execute tools by MOS (research = web/search; coding = exec in sandbox; triage = memory + reply) | receive orders; `report_up` | order issuance, delegation |
 
+**Recommended LLM model(s) by rank** — Operators can align quality/cost and SOUL prompts with model choice. Use an ordered list (first choice, fallback) for failover. Per-node `model_ranking` in the registry overrides this when set.
+
+| Rank | Recommended model(s) | Notes |
+|------|----------------------|-------|
+| General | Prefer strongest (e.g. Claude Opus, GPT-4) | Synthesis and high-level delegation. |
+| Colonel | Strong (e.g. Claude Sonnet, GPT-4) | Theater lead; delegates and reports up. |
+| Captain | Strong or moderate (e.g. Claude Haiku, GPT-4o-mini) | Platoon lead; delegates and reports. |
+| Sergeant | Moderate (e.g. Llama 3, local Ollama) | Squad lead or executes; can use smaller models. |
+| Specialist | Smaller/faster (e.g. Llama, local Ollama) or moderate by MOS | Task execution; SOUL + MOS constrain behavior. |
+
 - **Issue order:** General (and optionally Colonel/Captain) use a **tool or script** that POSTs an order to the dispatcher (orderId, addressee, payload, priority). Documented in [OPENCLAW_ARMY_OF_OPENCLAW.md](OPENCLAW_ARMY_OF_OPENCLAW.md) §6.
 - **Report up:** Sergeants and Specialists submit results via bridge or PUT to store so the issuer and Mission Control consume them.
 
@@ -130,7 +164,8 @@ For consistent **discovery/routing** (registry, dispatcher) and **least-privileg
 - **Purpose:** “Who exists, where are they, what can they do?” so the command post and dispatcher can route orders.
 - **Contents (per “soldier” = gateway or agent):** id, gatewayId, agentId (optional), rank, unit, platoon, theater, skills (list), status (available, busy, offline), optional capacity (e.g. max tasks).
 - **Population:** Manual config at first (e.g. in Mission Control gateway list plus optional rank/unit/skills). Later: gateways **register** on startup (POST to registry API) and **advertise** skill descriptors (periodically or on change); registry stores and indexes them.
-- **Implementation option A:** New service or extension of mesh store: `army/registry` table or API (`GET /army/units`, `GET /army/nodes?skill=research`, `POST /army/register`). Backed by SQLite or existing store schema extension.
+- **Registry freshness:** Optional **heartbeat** or periodic re-registration (POST /army/register with same id updates `updated_at`). Nodes that have not updated within a **TTL** (e.g. 5–10 minutes) can be treated as stale: dispatcher may mark them `offline` or exclude them from routing; a background job or dispatcher can set `status = 'offline'` when `updated_at` is older than TTL. Config: e.g. `ARMY_REGISTRY_TTL_SEC`.
+- **Implementation option A:** New service or extension of mesh store: `army/registry` table or API (`GET /army/units`, `GET /army/nodes?skill=research`, `POST /army/register`). Backed by SQLite or existing store schema extension. Reference implementation: [army/server.js](army/server.js) and [mesh/store/client.js](mesh/store/client.js).
 - **Implementation option B:** Bridge-based discovery (Option D in [OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md](OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md)): nodes post skill summaries to the bridge; a **registry sidecar** ingests and maintains the roster.
 
 **Registry row (reference):**
@@ -147,6 +182,7 @@ For consistent **discovery/routing** (registry, dispatcher) and **least-privileg
 | `skills` | string[] | Capability list (e.g. research, coding, triage). |
 | `status` | string | `available`, `busy`, `offline`. |
 | `capacity` | number (optional) | Max concurrent tasks. |
+| `model_ranking` | string[] (optional) | Array of model ids (e.g. `["claude-3-opus","gpt-4","ollama/llama3"]`) for this node; overrides rank default when set. |
 | `updated_at` | number | Unix timestamp. |
 
 ---
@@ -154,7 +190,8 @@ For consistent **discovery/routing** (registry, dispatcher) and **least-privileg
 ## 6. Dispatcher (task router)
 
 - **Role:** Receives **orders** from Command (or any authorized issuer); looks up **registry** for addressee (by unit, role, or gatewayId); selects target(s); **sends task** to the right bridge channel or gateway webhook; optionally **tracks** (orderId → status, result) and **retries** or **failover** if target is down or busy.
-- **Placement:** New component (e.g. `army/dispatcher.js` or part of Mission Control proxy): subscribes to “orders” or is called by Command gateway (tool that POSTs order to dispatcher). Dispatcher uses registry + routing rules (e.g. “research → any node with skill research, least loaded”) and posts to bridge or gateway ingest.
+- **Placement:** New component (e.g. `army/dispatcher.js` or part of Mission Control proxy): subscribes to “orders” or is called by Command gateway (tool that POSTs order to dispatcher). Dispatcher uses registry + routing rules (e.g. “research → any node with skill research, least loaded”) and posts to bridge or gateway ingest. Reference implementation: [army/server.js](army/server.js).
+- **Routing rules:** Resolve addressee in order: (1) exact **gatewayId** if given; (2) **unit** (all nodes in unit, then pick one); (3) **role/skill** (all nodes with that skill, then pick one). When multiple candidates exist, prefer **least loaded** (e.g. by count of in_progress orders per node) or **least recently used**. Process orders by **priority** (e.g. high before normal before low) and optionally by **deadline** (soonest first).
 - **Resilience:** If target unavailable, dispatcher can try next candidate (same role/unit) or queue order and retry; optional timeout and dead-letter (store failed orders for review). See §8 below.
 
 ---
@@ -174,9 +211,21 @@ Data source: registry API + dispatcher API (or store where dispatcher writes ord
 
 ## 8. Resilience (failover, timeout, dead-letter)
 
-- **Failover:** When dispatcher sends an order to a node (by role or unit), if that node is offline or returns error, dispatcher selects next candidate from registry (same role/unit, status available) and retries. Optional max retries per order.
-- **Timeout:** Orders may have a `deadline`. Dispatcher or command post marks order as failed or timed out when deadline passes without result; optional escalation (e.g. notify or reassign).
-- **Dead-letter:** Failed or timed-out orders can be written to a store (e.g. `army/orders_deadletter` table or queue) for human review or replay. Dispatcher exposes optional `GET /army/orders?status=failed` or similar.
+- **Failover:** When dispatcher sends an order to a node (by role or unit), if that node is offline or returns error, dispatcher selects **next candidate** from registry (same role/unit, status available) and retries. Optional **max retries** per order (e.g. 3); after exhaustion, mark order as failed and write to dead-letter.
+- **Timeout:** Orders may have a `deadline` (Unix timestamp). Dispatcher or a background job marks order as **failed** or **timed out** when deadline passes without result; optional escalation (e.g. notify issuer or reassign to another node).
+- **Dead-letter:** Failed or timed-out orders remain in store with `status = 'failed'` and optional `error` reason. Dispatcher exposes `GET /army/orders?status=failed` for review and optional replay (re-submit with same or new orderId).
+- **Registry TTL:** See §5 — nodes not seen within TTL can be excluded from routing or marked `offline`.
+
+**Escalation (refused or failed orders):**
+- When a **Sergeant or Specialist** cannot execute, they **report_up** with `status: "refused"` and `reason` (see [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md) refuse-order protocol). The issuer (General/Colonel/Captain) or Mission Control can **reassign** or **re-issue**.
+- **Who can reassign:** (1) **Dispatcher auto-failover** — on delivery failure (node offline, ingest error), the dispatcher tries the next candidate (same role/unit) up to max retries; (2) **Manual re-issue** — from Mission Control (Orders queue → Issue order with same payload and a new orderId) or by the Command gateway issuing a new order. There is no automatic “re-route refused order” today; the chain or operator decides whether to send to another node or escalate to a different role.
+
+---
+
+## 8b. Security (order issuer, audit)
+
+- **Order issuer check:** Dispatcher (or proxy) may verify that the issuer is allowed to issue orders. When auth is enabled (e.g. `ARMY_AUTH_BEARER`), optional **rank check**: require header `X-Node-Id` and lookup in registry; allow only ranks that may issue orders (e.g. `general`, `colonel`, `captain` per chain of command). Reject with 403 if issuer rank is not allowed.
+- **Audit:** Log order issuance and delivery (orderId, from, addressee, target_node_id, ts) for compliance. Optional: write to an audit table or structured logs consumed by existing [OBSERVABILITY](OBSERVABILITY.md) pipeline.
 
 ---
 
@@ -198,5 +247,5 @@ Data source: registry API + dispatcher API (or store where dispatcher writes ord
 ## 10. Summary
 
 - **Army of OpenClaw** = hierarchical organization of gateways/agents with **chain of command**, **ranks/roles**, **units** (squad → platoon → theater), **orders** (structured tasks), **personnel registry** (discovery), and **dispatcher** (routing + optional failover).
-- **Mission Control** becomes the **command post** (unit view, roster, orders queue, optional missions).
-- This document is **design only**. Implementation (registry service, dispatcher, Mission Control UI changes) is separate. No OpenClaw gateway or agent protocol change required.
+- **Mission Control** becomes the **command post** (unit view, roster, orders queue, issue order form). Reference: Mission Control dashboard with “Army — Command Post” section when `OPENCLAW_MC_ARMY_URL` is set; [army/server.js](army/server.js) and [army/README.md](army/README.md).
+- **Reference implementation:** Registry + dispatcher in [army/](army/); store schema and client in [mesh/store](mesh/store/). No OpenClaw gateway or agent protocol change required.

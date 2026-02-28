@@ -1089,6 +1089,97 @@
         <span class="bridge-status" id="federationStatus">—</span>
       </div>
     </section>
+
+    <section class="bridge-section table-section" id="armySection" style="display: none;">
+      <h2 class="section-title">Army — Command Post</h2>
+      <div class="panel anim-1" style="margin-bottom: 1.5rem;">
+        <div class="panel-header">
+          <span class="panel-title">Unit View</span>
+        </div>
+        <div class="panel-body" id="armyUnitView">
+          <p class="text-dim">No units. Register nodes at <code>POST /army/register</code>.</p>
+        </div>
+      </div>
+      <div class="panel anim-2" style="margin-bottom: 1.5rem;">
+        <div class="panel-header">
+          <span class="panel-title">Roster</span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Rank</th>
+                <th>Unit</th>
+                <th>Platoon / Theater</th>
+                <th>Skills</th>
+                <th>Status</th>
+                <th>Model(s)</th>
+              </tr>
+            </thead>
+            <tbody id="armyRosterBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel anim-3" style="margin-bottom: 1.5rem;">
+        <div class="panel-header">
+          <span class="panel-title">Orders Queue</span>
+          <span style="margin-left: auto; display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-secondary btn-sm" data-army-order-filter="pending">Pending</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-army-order-filter="in_progress">In progress</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-army-order-filter="completed">Completed</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-army-order-filter="failed">Failed</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-army-order-filter="">All</button>
+          </span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Status</th>
+                <th>Addressee</th>
+                <th>Target</th>
+                <th>Priority</th>
+                <th>From</th>
+              </tr>
+            </thead>
+            <tbody id="armyOrdersBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel anim-4">
+        <div class="panel-header">
+          <span class="panel-title">Issue Order</span>
+        </div>
+        <div class="panel-body">
+          <form id="issueOrderForm" style="display: grid; gap: 1rem; max-width: 600px;">
+            <div class="form-group">
+              <label for="orderAddressee">Addressee (gatewayId, unit, or role)</label>
+              <input type="text" id="orderAddressee" placeholder='e.g. sec or {"role":"research"}' required>
+            </div>
+            <div class="form-group">
+              <label for="orderPayload">Payload (task text or JSON)</label>
+              <textarea id="orderPayload" rows="3" placeholder="Task description or JSON payload" required></textarea>
+            </div>
+            <div class="form-group">
+              <label for="orderPriority">Priority</label>
+              <select id="orderPriority">
+                <option value="low">Low</option>
+                <option value="normal" selected>Normal</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="orderFrom">From (optional)</label>
+              <input type="text" id="orderFrom" placeholder="Issuer node id">
+            </div>
+            <button type="submit" class="btn btn-primary">Issue Order</button>
+          </form>
+          <p id="issueOrderMessage" style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-dim);"></p>
+        </div>
+      </div>
+    </section>
   </div>
 
   <!-- Detail sidebar -->
@@ -1159,6 +1250,7 @@
 
     function nextId() { return 'mc-' + Math.random().toString(36).slice(2, 11); }
     function nowTime() { const d = new Date(); return d.toTimeString().slice(0, 5); }
+    function escapeHtml(s) { if (s == null) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
     function connectGateway(gw) {
       if (proxyMode) return;
@@ -1757,6 +1849,7 @@
           renderOverview();
           renderTable();
           fetchFederationHealth();
+          loadArmySection();
         };
         proxyWs.onmessage = (ev) => {
           try {
@@ -1840,6 +1933,164 @@
         statusEl.textContent = 'Unreachable';
       }
     }
+
+    let armyNodes = [];
+    let armyOrders = [];
+    let armyOrderFilter = '';
+
+    async function fetchArmyNodes() {
+      try {
+        const r = await fetch('/api/army/nodes');
+        if (!r.ok) return [];
+        return await r.json();
+      } catch (_) {
+        return [];
+      }
+    }
+
+    async function fetchArmyOrders(status) {
+      try {
+        const url = status ? '/api/army/orders?status=' + encodeURIComponent(status) : '/api/army/orders';
+        const r = await fetch(url);
+        if (!r.ok) return [];
+        return await r.json();
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function renderArmyUnitView(nodes) {
+      const el = document.getElementById('armyUnitView');
+      if (!el) return;
+      if (!nodes.length) {
+        el.innerHTML = '<p class="text-dim">No units. Register nodes at <code>POST /army/register</code>.</p>';
+        return;
+      }
+      const byTheater = {};
+      nodes.forEach((n) => {
+        const t = n.theater || 'default';
+        if (!byTheater[t]) byTheater[t] = {};
+        const platoon = n.platoon || 'default';
+        if (!byTheater[t][platoon]) byTheater[t][platoon] = [];
+        byTheater[t][platoon].push(n);
+      });
+      let html = '';
+      Object.keys(byTheater).sort().forEach((theater) => {
+        html += '<div style="margin-bottom: 1rem;"><strong style="color: var(--accent);">' + escapeHtml(theater) + '</strong>';
+        Object.keys(byTheater[theater]).sort().forEach((platoon) => {
+          const units = byTheater[theater][platoon];
+          const unitNames = [...new Set(units.map((u) => u.unit))].join(', ');
+          html += '<div style="margin-left: 1rem; margin-top: 0.5rem;">' + escapeHtml(platoon) + ' → ' + escapeHtml(unitNames) + ' (' + units.length + ' node(s))</div>';
+        });
+        html += '</div>';
+      });
+      el.innerHTML = html || '<p class="text-dim">No units.</p>';
+    }
+
+    function renderArmyRoster(nodes) {
+      const tbody = document.getElementById('armyRosterBody');
+      if (!tbody) return;
+      if (!nodes.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="color: var(--text-dim);">No nodes in registry.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = nodes.map((n) => {
+        const skills = Array.isArray(n.skills) ? n.skills.join(', ') : (n.skills || '');
+        const platoonTheater = [n.platoon, n.theater].filter(Boolean).join(' / ') || '—';
+        const models = Array.isArray(n.model_ranking) && n.model_ranking.length ? n.model_ranking.join(', ') : '—';
+        return '<tr><td>' + escapeHtml(n.id) + '</td><td>' + escapeHtml(n.rank) + '</td><td>' + escapeHtml(n.unit) + '</td><td>' + escapeHtml(platoonTheater) + '</td><td>' + escapeHtml(skills) + '</td><td>' + escapeHtml(n.status) + '</td><td>' + escapeHtml(models) + '</td></tr>';
+      }).join('');
+    }
+
+    function renderArmyOrders(orders) {
+      const tbody = document.getElementById('armyOrdersBody');
+      if (!tbody) return;
+      const list = armyOrderFilter ? orders.filter((o) => o.status === armyOrderFilter) : orders;
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color: var(--text-dim);">No orders.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.slice(0, 50).map((o) => {
+        const addresseeStr = typeof o.addressee === 'object' ? JSON.stringify(o.addressee) : String(o.addressee || '');
+        return '<tr><td>' + escapeHtml(o.order_id) + '</td><td>' + escapeHtml(o.status) + '</td><td>' + escapeHtml(addresseeStr) + '</td><td>' + escapeHtml(o.target_node_id || '—') + '</td><td>' + escapeHtml(o.priority) + '</td><td>' + escapeHtml(o.from_node) + '</td></tr>';
+      }).join('');
+    }
+
+    async function loadArmySection() {
+      const section = document.getElementById('armySection');
+      if (!section) return;
+      armyNodes = await fetchArmyNodes();
+      if (armyNodes.length === 0) {
+        const r = await fetch('/api/army/nodes').catch(() => null);
+        if (r && r.status === 503) {
+          section.style.display = 'block';
+          document.getElementById('armyUnitView').innerHTML = '<p class="text-dim">Army service unreachable. Set OPENCLAW_MC_ARMY_URL and run the Army server.</p>';
+        }
+        return;
+      }
+      section.style.display = 'block';
+      renderArmyUnitView(armyNodes);
+      renderArmyRoster(armyNodes);
+      armyOrders = await fetchArmyOrders();
+      renderArmyOrders(armyOrders);
+    }
+
+    document.querySelectorAll('[data-army-order-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        armyOrderFilter = btn.getAttribute('data-army-order-filter');
+        document.querySelectorAll('[data-army-order-filter]').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderArmyOrders(armyOrders);
+      });
+    });
+
+    document.getElementById('issueOrderForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msgEl = document.getElementById('issueOrderMessage');
+      const addresseeRaw = document.getElementById('orderAddressee').value.trim();
+      let addressee = addresseeRaw;
+      if (addresseeRaw.startsWith('{')) {
+        try {
+          addressee = JSON.parse(addresseeRaw);
+        } catch (_) {
+          msgEl.textContent = 'Addressee: invalid JSON';
+          return;
+        }
+      }
+      const payloadRaw = document.getElementById('orderPayload').value.trim();
+      let payload = payloadRaw;
+      if (payloadRaw.startsWith('{')) {
+        try {
+          payload = JSON.parse(payloadRaw);
+        } catch (_) {}
+      }
+      const body = {
+        addressee,
+        payload,
+        priority: document.getElementById('orderPriority').value,
+        from: document.getElementById('orderFrom').value.trim() || undefined,
+      };
+      try {
+        const r = await fetch('/api/army/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok || r.status === 202) {
+          msgEl.textContent = 'Order submitted: ' + (d.orderId || d.order_id || '—');
+          msgEl.style.color = 'var(--success)';
+          armyOrders = await fetchArmyOrders();
+          renderArmyOrders(armyOrders);
+        } else {
+          msgEl.textContent = d.error || 'Failed ' + r.status;
+          msgEl.style.color = 'var(--error)';
+        }
+      } catch (err) {
+        msgEl.textContent = err.message || 'Request failed';
+        msgEl.style.color = 'var(--error)';
+      }
+    });
 
     (async () => {
       try {

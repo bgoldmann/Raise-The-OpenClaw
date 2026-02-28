@@ -29,3 +29,46 @@ CREATE TABLE IF NOT EXISTS mesh_skills (
 
 CREATE INDEX IF NOT EXISTS idx_mesh_skills_name ON mesh_skills(name);
 CREATE INDEX IF NOT EXISTS idx_mesh_skills_updated_at ON mesh_skills(updated_at);
+
+-- Army of OpenClaw: personnel registry (discovery) and orders
+-- See OPENCLAW_ARMY_OF_OPENCLAW.md §5 (registry), §4 (orders)
+CREATE TABLE IF NOT EXISTS army_registry (
+  id TEXT PRIMARY KEY,
+  gateway_id TEXT NOT NULL,
+  agent_id TEXT,
+  rank TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  platoon TEXT,
+  theater TEXT,
+  skills TEXT NOT NULL,  -- JSON array e.g. ["research","coding"]
+  status TEXT NOT NULL DEFAULT 'available',
+  capacity INTEGER,
+  ingest_url TEXT,       -- Bridge webhook or gateway ingest URL for orders
+  model_ranking TEXT,    -- JSON array of model ids e.g. ["claude-3-opus","ollama/llama3"]
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_army_registry_gateway ON army_registry(gateway_id);
+CREATE INDEX IF NOT EXISTS idx_army_registry_unit ON army_registry(unit);
+CREATE INDEX IF NOT EXISTS idx_army_registry_status ON army_registry(status);
+CREATE INDEX IF NOT EXISTS idx_army_registry_updated ON army_registry(updated_at);
+
+CREATE TABLE IF NOT EXISTS army_orders (
+  order_id TEXT PRIMARY KEY,
+  type TEXT NOT NULL DEFAULT 'task',
+  addressee TEXT NOT NULL,  -- JSON: { gatewayId?, unit?, role? }
+  payload TEXT NOT NULL,     -- JSON
+  priority TEXT NOT NULL DEFAULT 'normal',
+  deadline INTEGER,
+  from_node TEXT NOT NULL,
+  ts INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  target_node_id TEXT,
+  retry_count INTEGER DEFAULT 0,
+  max_retries INTEGER DEFAULT 3,
+  result TEXT,
+  error TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_army_orders_status ON army_orders(status);
+CREATE INDEX IF NOT EXISTS idx_army_orders_created ON army_orders(created_at);

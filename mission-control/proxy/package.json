@@ -1,0 +1,14 @@
+{
+  "name": "raise-the-openclaw-mission-control-proxy",
+  "version": "1.0.0",
+  "description": "Backend proxy for Mission Control; holds gateway tokens and multiplexes WebSocket to gateways.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test-connection": "node -e \"require('./server.js').testConnection(process.argv[2])\""
+  },
+  "engines": { "node": ">=18.0.0" },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

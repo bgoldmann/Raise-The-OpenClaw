@@ -4,43 +4,41 @@ Reference implementation of the [Mission Control Dashboard](../OPENCLAW_MISSION_
 
 ## Run
 
-Open `index.html` in a browser:
+**Standalone (direct connect):** Open `index.html` in a browser or serve it:
 
 ```bash
 open index.html
+# Or: npx serve .
 ```
 
-Or serve it over HTTP:
+Gateways are stored in localStorage. Add gateways with WebSocket URL and optional token; the dashboard connects to each gateway using the OpenClaw WebSocket protocol (port 18789) and shows live data when connected.
+
+**With backend proxy (tokens server-side):** Run the proxy, then open the URL it serves:
 
 ```bash
-npx serve .
+cd proxy && npm install && node server.js
+# Open http://localhost:3080/
 ```
+
+The dashboard detects the proxy via `GET /api/gateways`, loads the gateway list (no tokens in the browser), and connects to a single WebSocket at `/ws`. See [proxy/README.md](proxy/README.md).
 
 ## Features
 
-- **Stats strip** — Jobs (running, queued, done, failed), tasks (active, pending), pending approvals
-- **Overview** — Cards per gateway with status, last seen, and links to Control UI
-- **Currently Working** — What each agent is doing (agent, task, progress %, gateway)
-- **Tasks** — Task list with status: pending, in progress, done, blocked
-- **Jobs** — Job queue (type, status, gateway, duration)
-- **Working Against** — Deadlines, blockers, and targets (constraints to keep in view)
-- **Pending Approvals** — Exec approvals with Approve/Deny (operator.approvals scope)
-- **Recent Activity** — Event timeline with time and gateway
-- **Gateways table** — Sortable by name, ID, agents, sessions, channels
-- **Per-gateway detail** — Sidebar: agents, sessions, channels, working, tasks, jobs, nodes
-- **Bridge status** — CEO ↔ Sec bridge informational section
-- **Add gateway** — Modal form to add new gateways (persisted in localStorage)
+- **Live gateway connection** — WebSocket to each gateway (or one to the proxy); OpenClaw handshake (connect.challenge → connect with operator role) and live data (status, agent.list, sessions.list, channels.list, events).
+- **LIVE badge** — Shown when at least one gateway is connected.
+- **Stats strip** — Jobs (running, queued, done, failed), tasks (active, pending), pending approvals (from live or mock).
+- **Overview** — Cards per gateway with status and links to Control UI.
+- **Currently Working / Tasks / Jobs / Approvals / Activity** — From live events when connected; otherwise mock data.
+- **Gateways table** — Sortable; per-gateway detail sidebar.
+- **Bridge status** — CEO ↔ Sec bridge (informational).
+- **Add/Edit gateway** — Modal with ID, name, WebSocket URL, Control UI URL, optional token (for direct mode only; use proxy for production).
+- **Export** — CSV or JSON export of the gateways table (Export button in header).
+- **Customize** — Toggle visibility of panels (Working, Tasks, Jobs, Working Against, Approvals, Activity); persisted in localStorage.
 
 ## Animations
 
-- Staggered card entrance on load
-- Pulsing status indicators for connected/error
-- Scan line sweep across the viewport
-- Subtle floating header
-- Card lift + glow on hover
-- Sidebar slide-in and section stagger
-- Modal scale + fade on open
+- Staggered card entrance, status pulse, scan line, floating header, card hover, sidebar and modal transitions.
 
-## Data
+## Protocol integration
 
-Uses mock data by default (CEO + Sec gateways). Gateway list is stored in localStorage. Connect real gateways by implementing the OpenClaw WebSocket protocol (port 18789) in the JS layer.
+The dashboard implements the OpenClaw Gateway WebSocket protocol: first frame is `connect` (after optional `connect.challenge`); then it calls `status`, `agent.list`, `sessions.list`, `channels.list` and displays results; it also handles events (e.g. `exec.approval.requested`). For gateways that require device auth, use the backend proxy (which can perform pairing once and hold tokens).

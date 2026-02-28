@@ -20,6 +20,10 @@ Enable two or more **independent OpenClaw gateways** (a mesh) to share **knowled
 | **Shared memory** | Knowledge (facts, context, preferences) with explicit scope (node / mesh / user) that can be read or synced across mesh nodes. |
 | **Skill sharing** | Exchanging reusable capabilities: SOUL/STYLE snippets, procedure docs, and skill descriptors so nodes can reuse behaviors. |
 | **Bridge** | The existing channel (e.g. Telegram/Discord) or webhook used for cross-gateway communication (e.g. CEO → Sec tasks). |
+| **Federation hub** | Optional node that connects the mesh to external meshes: single gateway for inbound (external → your mesh) and outbound (your mesh → external) traffic, with filtering and optional signing. |
+| **External mesh** | Another OpenClaw mesh (different org, bridge, or network) that the federation hub can exchange selected memory/skills with. |
+| **Federation scope** | Scope `federation` or an allow-list of keys; only such data is eligible to be sent to external meshes. |
+| **Provenance (external)** | External-origin data is tagged with `nodeId: "external:<mesh-id>:<node-id>"` (and optionally `sourceMeshId`) for auditing and filtering. |
 
 ---
 
@@ -67,6 +71,7 @@ Enable two or more **independent OpenClaw gateways** (a mesh) to share **knowled
 | Phase 2: shared store schema and access patterns. | Implementation of a specific bridge transport (Telegram/Discord/etc.) or shared store backend—implementation follows PRD. |
 | Phase 3: local-first sync behavior and conflict resolution. | |
 | Integration points with Mission Control and CEO→Sec bridge. | |
+| Optional **Federation Hub**: connect mesh to external meshes; filter in/out, provenance, optional signing. | |
 
 ---
 
@@ -134,6 +139,11 @@ Enable two or more **independent OpenClaw gateways** (a mesh) to share **knowled
 
 *Rationale and detail: [OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md](OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md) §5.*
 
+**Federation (optional)**
+
+- Data that may be shared with **external meshes** uses scope `federation` or an allow-list of keys (`federationKeys`). The federation hub only sends out such data; internal-only scopes (`mesh`, `node`, `user:<id>`) stay within your mesh.
+- Messages from external meshes are stored with provenance `nodeId: "external:<mesh-id>:<node-id>"` so agents and sync can distinguish origin. See [OPENCLAW_MESH_FEDERATION_HUB.md](OPENCLAW_MESH_FEDERATION_HUB.md).
+
 ---
 
 ## 10. Dependencies and Assumptions
@@ -161,6 +171,8 @@ Enable two or more **independent OpenClaw gateways** (a mesh) to share **knowled
 
 ## 12. Architecture (Mesh Topology)
 
+**Internal mesh (CEO + Sec + bridge + store):**
+
 ```mermaid
 flowchart LR
   subgraph CEO_node [CEO Node]
@@ -184,6 +196,35 @@ flowchart LR
 - **Solid lines:** Existing task flow (bridge).
 - **Dotted:** Phase 1 local caches (ingest from bridge); Phase 2 optional shared store.
 
+**With optional Federation Hub (connect to external meshes):**
+
+```mermaid
+flowchart LR
+  subgraph InternalMesh [Your mesh - same network]
+    CEO_GW2[CEO Gateway]
+    Sec_GW2[Sec Gateway]
+    Bridge2[Bridge Channel]
+    SharedStore2[Shared Store]
+    CEO_GW2 --> Bridge2
+    Bridge2 --> Sec_GW2
+    CEO_GW2 -.-> SharedStore2
+    Sec_GW2 -.-> SharedStore2
+  end
+  subgraph Hub [Federation Hub]
+    FH[Hub Process]
+  end
+  subgraph ExternalMeshes [External meshes]
+    EM1[Other mesh A]
+    EM2[Other mesh B]
+  end
+  Bridge2 -.->|"subscribe / inject"| FH
+  SharedStore2 -.->|"read / write"| FH
+  FH <-->|"filtered + optional signing"| EM1
+  FH <-->|"filtered + optional signing"| EM2
+```
+
+See [OPENCLAW_MESH_FEDERATION_HUB.md](OPENCLAW_MESH_FEDERATION_HUB.md) for hub responsibilities, config, and security.
+
 ---
 
 ## 13. References and Related Docs
@@ -194,5 +235,6 @@ flowchart LR
 | [OPENCLAW_TWO_NODE_MAC_NAS_DESIGN.md](OPENCLAW_TWO_NODE_MAC_NAS_DESIGN.md) | Two-node setup; Option B = two gateways = mesh. |
 | [OPENCLAW_MAC_MINI_CEO_PROMPTS.md §4](OPENCLAW_MAC_MINI_CEO_PROMPTS.md#4-ceo--sec-delegation-cross-gateway) | CEO → Sec delegation (bridge channel/webhook). |
 | [OPENCLAW_MISSION_CONTROL_DASHBOARD.md](OPENCLAW_MISSION_CONTROL_DASHBOARD.md) | Dashboard; can surface mesh memory/skills if store or bridge parser exists. |
+| [OPENCLAW_MESH_FEDERATION_HUB.md](OPENCLAW_MESH_FEDERATION_HUB.md) | Federation hub: connect mesh to external meshes; topology, config, filtering, signing. |
 
 **Research references (see design doc §7):** SEDM, Collaborative Memory, SHIMI, OpenAgents+Milvus, SkillOrchestra, D³MAS, NextGraph/CRDTs, Agent Mesh (ACP, AMP).

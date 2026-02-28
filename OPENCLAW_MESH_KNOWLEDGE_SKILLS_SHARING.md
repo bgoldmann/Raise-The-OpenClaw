@@ -205,6 +205,7 @@ For a **mesh of OpenClaw** (e.g. CEO + Sec today; more nodes later) without chan
 | Two-node (Mac + NAS) | [OPENCLAW_TWO_NODE_MAC_NAS_DESIGN.md](OPENCLAW_TWO_NODE_MAC_NAS_DESIGN.md) — Option B = two gateways = mesh. |
 | CEO → Sec bridge | [OPENCLAW_MAC_MINI_CEO_PROMPTS.md#4](OPENCLAW_MAC_MINI_CEO_PROMPTS.md#4-ceo--sec-delegation-cross-gateway) — bridge channel/webhook; extend with memory/skill messages. |
 | Mission Control | [OPENCLAW_MISSION_CONTROL_DASHBOARD.md](OPENCLAW_MISSION_CONTROL_DASHBOARD.md) — dashboard can show “mesh memory” or “mesh skills” if you add a store or bridge parser. |
+| Federation hub | [OPENCLAW_MESH_FEDERATION_HUB.md](OPENCLAW_MESH_FEDERATION_HUB.md) — connect your mesh to other meshes outside your network; single gateway with filtering and optional signing. |
 
 ---
 

@@ -43,7 +43,12 @@ If you prefer not to change your bridge code, run the small webhook server and f
 ```bash
 # From the Raise The OpenClaw repo (or set OPENCLAW_HOME if mesh cache lives elsewhere)
 node bridge/webhook-server.js 4077
+
+# Optional auth (enterprise): require X-API-Key or Bearer token on POST /ingest and /bridge
+# BRIDGE_AUTH_HEADER=X-API-Key BRIDGE_AUTH_SECRET=your-secret node bridge/webhook-server.js 4077
+# Or: BRIDGE_AUTH_BEARER=your-token node bridge/webhook-server.js 4077
 # Or: PORT=4077 MESH_NODE_ID=sec node bridge/webhook-server.js
+# Optional rate limit: BRIDGE_RATE_LIMIT_PER_MIN=60 (429 when exceeded per IP or auth key)
 ```
 
 Then:

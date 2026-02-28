@@ -49,6 +49,16 @@ syncStoreToLocalCache('/path/to/mesh-store.sqlite', process.env.OPENCLAW_HOME);
 
 If `better-sqlite3` is not installed, `openStore()` returns `null` and no SQLite operations run.
 
+## HTTP API server (reference)
+
+**api-server.js** — Reference HTTP API implementing [access-model.md](access-model.md) Option A. Run:
+
+```bash
+MESH_STORE_DB_PATH=/path/to/mesh-store.sqlite node mesh/store/api-server.js 4078
+```
+
+Optional auth: `MESH_STORE_AUTH_HEADER=X-API-Key` + `MESH_STORE_AUTH_SECRET=secret`, or `MESH_STORE_AUTH_BEARER=token`. Optional rate limit: `MESH_STORE_RATE_LIMIT_PER_MIN=120` (429 when exceeded). Endpoints: `GET /health`, `GET/PUT /mesh/memory`, `GET/PUT /mesh/skills`. Requires `better-sqlite3`; without it or without `MESH_STORE_DB_PATH`, `/mesh/*` returns 503.
+
 ## Bootstrap
 
 1. Create the DB and apply schema:

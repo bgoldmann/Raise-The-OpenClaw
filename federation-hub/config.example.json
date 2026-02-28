@@ -1,0 +1,32 @@
+{
+  "internal": {
+    "bridgeWebhookUrl": "http://localhost:4077/ingest",
+    "storeApiUrl": "http://localhost:4078",
+    "storeAuth": null,
+    "shareSecret": null,
+    "shareBearer": null,
+    "registryUrl": null,
+    "thisTheater": null,
+    "shareWriteToStore": true,
+    "shareImmediateOutbound": false,
+    "storeToBridgeIntervalMs": null
+  },
+  "externalMeshes": [
+    {
+      "meshId": "mesh-a",
+      "endpoint": "https://other-mesh.example.com/federation/in",
+      "direction": "both",
+      "apiKey": "shared-secret-for-mesh-a",
+      "outboundBearer": null,
+      "allowedInboundScopesKeys": ["mesh", "federation"],
+      "theater": null
+    }
+  ],
+  "outboundScope": "federation",
+  "outboundKeysAllowList": null,
+  "outboundPollIntervalMs": 60000,
+  "signOutbound": false,
+  "verifyInbound": false,
+  "privateKeyPath": null,
+  "privateKeyEnv": "FEDERATION_HUB_PRIVATE_KEY"
+}

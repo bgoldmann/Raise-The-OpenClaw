@@ -75,7 +75,7 @@ flowchart LR
 | Area | What you get |
 |------|----------------|
 | **Multi-node mesh** | Share memory and skills across independent OpenClaw gateways (CEO ↔ Sec). Full PRD, message formats, local cache, bridge wiring, shared store schema, and local-first sync. |
-| **Mission Control** | Single dashboard for two (or more) gateways: overview, gateways table, per-node detail, bridge status. Design doc + **runnable SPA** you can open in a browser. |
+| **Mission Control** | Single dashboard for two (or more) gateways: **live WebSocket** to OpenClaw gateways, optional **backend proxy** (tokens server-side), overview, gateways table, per-node detail, bridge status, **export** (CSV/JSON), **customizable panels**. Design doc + runnable SPA + proxy. |
 | **CEO + Sec setup** | Mac Mini (CEO) and Synology (Sec) with copy-paste SOUL.md prompts, bindings, and CEO→Sec delegation over a bridge (Telegram/Discord or webhook). |
 | **NAS + hardware** | Best-practice designs for OpenClaw on Synology DS1621xs+ and Mac mini: Docker, network, one-cluster vs two-instance. |
 
@@ -87,8 +87,9 @@ Everything is **documentation-first** with **reference code** where it helps: no
 
 - **[Get started A to Z](GETTING_STARTED.md)** — Prerequisites, clone, run dashboard, mesh, bridge, and full CEO+Sec setup.
 - **[Product Requirements: OpenClaw Mesh](PRD.md)** — Problem, goals, phased requirements (bridge → shared store → local-first sync), NFRs.
-- **[Mission Control dashboard](mission-control/index.html)** — Open in a browser. Overview cards, gateways table, bridge status, add/edit gateway (persists to localStorage).
+- **[Mission Control dashboard](mission-control/index.html)** — Open in a browser. Live gateway connection, overview cards, gateways table, bridge status, add/edit gateway, export, customizable panels. Use **[Mission Control proxy](mission-control/proxy/README.md)** for tokens server-side.
 - **[CEO + Sec prompts](OPENCLAW_MAC_MINI_CEO_PROMPTS.md)** — SOUL.md for CEO, Sec, Research, Coding, Notes, Trading, Family; CEO→Sec bridge options.
+- **[Enterprise security](ENTERPRISE_SECURITY.md)** — Proxy, bridge auth, TLS. **[Observability](OBSERVABILITY.md)** — Logging, metrics, health. **[Deployment](DEPLOYMENT.md)** — Docker Compose, Kubernetes. **[Runbooks](docs/RUNBOOKS.md)** — Add gateway, rotate token, recover store.
 - **[Changelog](changelog.md)** — Version history.
 
 ---
@@ -98,10 +99,13 @@ Everything is **documentation-first** with **reference code** where it helps: no
 | Repo path | Purpose |
 |----------|---------|
 | **[mesh/](mesh/)** | **Phase 1:** Message formats (memory/skill), local cache (`~/.openclaw/mesh-memory.json`, `mesh/skills/`), bridge ingest, request/response over bridge. **Phase 2:** [mesh/store/](mesh/store/) — shared store schema (SQLite), access model, optional client. **Phase 3:** [mesh/sync/](mesh/sync/) — sync protocol, LWW merge, optional hash summary. |
-| **[bridge/](bridge/)** | Wire mesh into your bridge: `handleBridgeMessage(payload, { unwrap: 'telegram' })` and optional webhook server (`POST /ingest`, `POST /bridge`). |
-| **[mission-control/](mission-control/)** | Single-page dashboard (HTML/CSS/JS): gateways, stats, tasks, jobs, approvals, activity feed. |
+| **[bridge/](bridge/)** | Wire mesh into your bridge: `handleBridgeMessage(payload, { unwrap: 'telegram' })` and webhook server (`POST /ingest`, `POST /bridge`) with optional **API key/Bearer auth**, **structured logging**, **/metrics**, **/health** with cache writability check. |
+| **[mission-control/](mission-control/)** | Single-page dashboard: **live WebSocket** to gateways (OpenClaw protocol), **proxy** in [mission-control/proxy/](mission-control/proxy/) (tokens server-side), gateways, stats, tasks, jobs, approvals, activity, export, customizable panels. |
+| **[federation-hub/](federation-hub/)** | **Federation Hub** — connect your mesh to other meshes: `POST /federation/in` (inbound), `POST /federation/share` (internal intel share), outbound (poll store → POST to external), optional store-to-bridge fan-out, optional signing, `GET /metrics`. Config: `config.example.json`; design: [OPENCLAW_MESH_FEDERATION_HUB.md](OPENCLAW_MESH_FEDERATION_HUB.md), [OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md). |
+| **[mesh/store/api-server.js](mesh/store/api-server.js)** | **Mesh store HTTP API** — GET/PUT list memory and skills; optional auth and rate limiting. Run with `MESH_STORE_DB_PATH`; see [mesh/store/README.md](mesh/store/README.md). |
+| **[scripts/mesh-cli.js](scripts/mesh-cli.js)** | **Mesh CLI** — get/put/list memory and skills (local cache or `MESH_STORE_URL`). |
 
-All runnable with **Node.js** (no extra deps for mesh/bridge; optional `better-sqlite3` for mesh store client).
+All runnable with **Node.js** (no extra deps for mesh/bridge; Mission Control proxy uses `ws`; optional `better-sqlite3` for mesh store client).
 
 ---
 
@@ -110,12 +114,21 @@ All runnable with **Node.js** (no extra deps for mesh/bridge; optional `better-s
 | Doc | Description |
 |-----|--------------|
 | [PRD — OpenClaw Mesh](PRD.md) | Product requirements: shared knowledge and skills across a mesh of gateways. |
+| [PRD — Expansion](PRD_EXPANSION.md) | Expansion (Phase 2): store API, federation outbound, signing, multi-tenancy, rate limits, public APIs, mesh/federation view, runbooks, optional CLI. |
 | [Mesh design & research](OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md) | How to share memory and skills; bridge vs shared store vs CRDT/sync; references (SEDM, SHIMI, D³MAS, agent mesh). |
 | [Mission Control design](OPENCLAW_MISSION_CONTROL_DASHBOARD.md) | Dashboard architecture, config schema, UI sections, security, reference implementation options. |
 | [CEO + Sec prompts](OPENCLAW_MAC_MINI_CEO_PROMPTS.md) | Copy-paste SOUL.md, bindings, agentToAgent, CEO→Sec delegation (bridge channel/webhook). |
 | [CEO + sub-agents setup](OPENCLAW_CEO_SUBAGENTS_SETUP.md) | OpenClaw as CEO with specialist sub-agents: architecture, config, SOUL examples. |
 | [Two-node: Mac Mini + Synology](OPENCLAW_TWO_NODE_MAC_NAS_DESIGN.md) | One cluster vs two independent instances; Docker, network. |
 | [NAS + Mac mini (Feb 2026)](OPENCLAW_NAS_MACMINI_FEB2026.md) | Gateway on Synology, Ollama on Mac mini: config, network, hardware tiers. |
+| [Enterprise security](ENTERPRISE_SECURITY.md) | Mission Control proxy, bridge auth, TLS, mesh store access. |
+| [Observability](OBSERVABILITY.md) | Logging, metrics, health, audit, retention. |
+| [Deployment](DEPLOYMENT.md) | Docker Compose, Kubernetes, single-host. |
+| [Enterprise expand](docs/ENTERPRISE_EXPAND.md) | Multi-tenancy, public APIs, rate limits, message signing. |
+| [Federation hub](OPENCLAW_MESH_FEDERATION_HUB.md) | Connect your mesh to external meshes: topology, config, filtering, provenance, optional signing; reference impl in [federation-hub/](federation-hub/). |
+| [Federation hub intel share](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md) | Memory via store or POST /federation/share; Army ranking and unit/theater; share endpoint, store-to-bridge. |
+| [Army of OpenClaw](OPENCLAW_ARMY_OF_OPENCLAW.md) | US Army–style hierarchy: chain of command, ranks/units, orders, registry, dispatcher, Mission Control as command post; design only. |
+| [Runbooks](docs/RUNBOOKS.md) | Add gateway, rotate token, recover mesh store, scale bridge. |
 
 ---
 

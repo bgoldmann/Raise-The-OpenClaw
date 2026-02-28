@@ -152,9 +152,24 @@ This section is for human reference only; the OpenClaw protocol does not expose 
 
 ---
 
-## 9. References
+## 9. Mission Control protocol integration (reference implementation)
+
+The Mission Control dashboard in this repo implements **live gateway connectivity** and an optional **backend proxy**:
+
+- **Direct mode:** Open `mission-control/index.html` (or serve it). Gateways are loaded from localStorage. For each gateway with a `wsUrl`, the dashboard opens a WebSocket and performs the OpenClaw handshake: receives `connect.challenge`, sends `connect` with `role: "operator"`, `scopes: ["operator.read", "operator.write", "operator.approvals"]`, and `auth.token` (and minimal `device` identity). After `hello-ok`, it calls `status`, `agent.list`, `sessions.list`, and `channels.list` (or equivalent methods) and subscribes to events. Stats, tasks, jobs, and activity are updated from live data when connected; otherwise mock data is shown.
+- **Proxy mode:** When the dashboard is served from the Mission Control proxy (e.g. `http://localhost:3080/`), it fetches `GET /api/gateways` to obtain the gateway list (no tokens). It then connects to a single WebSocket at `/ws`. The proxy holds tokens and maintains one connection per gateway; it forwards client requests with a `gatewayId` and streams back events and responses. Tokens never reach the browser.
+- **Export:** The dashboard can export the gateways table as CSV or JSON (Export button in the header).
+- **Customize:** Panel visibility (Currently Working, Tasks, Jobs, Working Against, Pending Approvals, Recent Activity) can be toggled and is persisted in localStorage.
+
+See [mission-control/README.md](mission-control/README.md) and [mission-control/proxy/README.md](mission-control/proxy/README.md) for run instructions.
+
+---
+
+## 10. References
 
 - [OpenClaw Gateway Protocol](https://docs.openclaw.ai/gateway/protocol) — WebSocket handshake, roles, scopes, methods.
+- [Mission Control README](mission-control/README.md) — Run dashboard and proxy; live WebSocket and export.
+- [Mission Control proxy](mission-control/proxy/README.md) — Backend proxy so tokens stay server-side.
 - [OpenClaw Two-Node System: Mac Mini + Synology DS1621xs+ (Docker)](OPENCLAW_TWO_NODE_MAC_NAS_DESIGN.md) — Option A (one cluster) vs Option B (two instances); network and security.
 - [OpenClaw Complete Prompts — Mac Mini CEO + Sec (Synology)](OPENCLAW_MAC_MINI_CEO_PROMPTS.md) — CEO/Sec roles and CEO→Sec bridge.
 - [clawdocs.org](https://clawdocs.org) — OpenClaw getting started.

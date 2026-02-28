@@ -933,6 +933,33 @@
       color: var(--text-dim);
       font-size: 0.85rem;
     }
+    .live-badge {
+      position: absolute;
+      top: 1.5rem;
+      right: 2rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      background: var(--accent-glow);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .live-badge.hidden { display: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    header { position: relative; }
+    .header-actions { position: absolute; top: 1.5rem; right: 2rem; display: flex; align-items: center; gap: 0.5rem; }
+    .export-dropdown { position: relative; }
+    .export-menu { position: absolute; top: 100%; right: 0; margin-top: 0.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 0.25rem; min-width: 160px; z-index: 10; }
+    .export-menu.hidden { display: none; }
+    .export-menu button { display: block; width: 100%; padding: 0.4rem 0.6rem; text-align: left; background: none; border: none; color: var(--text); cursor: pointer; border-radius: 4px; font-size: 0.85rem; }
+    .export-menu button:hover { background: var(--border); }
+    .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+    .panel[data-hidden="true"] { display: none; }
   </style>
 </head>
 <body>
@@ -944,6 +971,17 @@
     <header>
       <h1 class="logo">OPENCLAW MISSION CONTROL</h1>
       <p class="subtitle">Two-Node & Extensible Gateway Aggregation</p>
+      <div class="header-actions">
+        <div id="liveBadge" class="live-badge hidden" title="At least one gateway connected">LIVE</div>
+        <div class="export-dropdown">
+          <button type="button" class="btn btn-secondary btn-sm" id="exportBtn" aria-haspopup="true" aria-expanded="false">Export</button>
+          <div id="exportMenu" class="export-menu hidden">
+            <button type="button" data-export="csv">CSV (gateways)</button>
+            <button type="button" data-export="json">JSON (gateways)</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="customizeBtn" title="Show/hide panels">Customize</button>
+      </div>
     </header>
 
     <div class="stats-strip" id="statsStrip">
@@ -958,7 +996,7 @@
     </section>
 
     <div class="dashboard-grid">
-      <section class="panel anim-1">
+      <section class="panel anim-1" data-panel="working">
         <div class="panel-header">
           <span class="panel-title">Currently Working</span>
         </div>
@@ -966,7 +1004,7 @@
           <!-- Injected by JS -->
         </div>
       </section>
-      <section class="panel anim-2">
+      <section class="panel anim-2" data-panel="tasks">
         <div class="panel-header">
           <span class="panel-title">Tasks</span>
         </div>
@@ -976,7 +1014,7 @@
       </section>
     </div>
 
-    <section class="panel anim-3">
+    <section class="panel anim-3" data-panel="jobs">
       <div class="panel-header">
         <span class="panel-title">Jobs</span>
       </div>
@@ -986,7 +1024,7 @@
     </section>
 
     <div class="dashboard-grid">
-      <section class="panel anim-3">
+      <section class="panel anim-3" data-panel="against">
         <div class="panel-header">
           <span class="panel-title">Working Against</span>
           <span class="stat-value" style="font-size:0.9rem" id="againstCount">0</span>
@@ -995,7 +1033,7 @@
           <!-- Injected by JS -->
         </div>
       </section>
-      <section class="panel anim-4">
+      <section class="panel anim-4" data-panel="approvals">
         <div class="panel-header">
           <span class="panel-title">Pending Approvals</span>
           <span class="stat-value" style="font-size:0.9rem" id="approvalsCount">0</span>
@@ -1006,7 +1044,7 @@
       </section>
     </div>
 
-    <section class="panel anim-4" style="margin-bottom: 2rem;">
+    <section class="panel anim-4" style="margin-bottom: 2rem;" data-panel="activity">
       <div class="panel-header">
         <span class="panel-title">Recent Activity</span>
       </div>
@@ -1041,6 +1079,14 @@
       <div class="bridge-card">
         <span class="bridge-label">CEO ↔ Sec bridge</span>
         <span class="bridge-status">Traffic via channel · Last activity: —</span>
+      </div>
+    </section>
+
+    <section class="bridge-section" id="federationSection" style="display: none;">
+      <h2 class="section-title">Mesh &amp; Federation</h2>
+      <div class="bridge-card">
+        <span class="bridge-label">Federation hub</span>
+        <span class="bridge-status" id="federationStatus">—</span>
       </div>
     </section>
   </div>
@@ -1082,6 +1128,11 @@
             <label for="gwControlUrl">Control UI URL (optional)</label>
             <input type="text" id="gwControlUrl" placeholder="http://127.0.0.1:18789">
           </div>
+          <div class="form-group">
+            <label for="gwToken">Token (optional, for direct connect)</label>
+            <input type="password" id="gwToken" placeholder="Gateway token" autocomplete="off">
+            <small style="color:var(--text-dim)">For production use the backend proxy so tokens stay server-side.</small>
+          </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" id="modalCancel">Cancel</button>
             <button type="submit" class="btn btn-primary" id="modalSubmitBtn">Add Gateway</button>
@@ -1093,11 +1144,144 @@
 
   <script>
     const DEFAULT_GATEWAYS = [
-      { id: 'ceo', name: 'CEO (Mac Mini)', wsUrl: 'ws://mac-mini.local:18789', controlUiUrl: 'http://127.0.0.1:18789', status: 'connected', agents: 6, sessions: 2, channels: 3 },
-      { id: 'sec', name: 'Sec (Synology)', wsUrl: 'ws://192.168.1.60:18789', controlUiUrl: 'http://192.168.1.60:18789', status: 'connected', agents: 4, sessions: 1, channels: 2 },
+      { id: 'ceo', name: 'CEO (Mac Mini)', wsUrl: 'ws://mac-mini.local:18789', controlUiUrl: 'http://127.0.0.1:18789', status: 'disconnected', agents: 0, sessions: 0, channels: 0 },
+      { id: 'sec', name: 'Sec (Synology)', wsUrl: 'ws://192.168.1.60:18789', controlUiUrl: 'http://192.168.1.60:18789', status: 'disconnected', agents: 0, sessions: 0, channels: 0 },
     ];
 
     let gateways = JSON.parse(localStorage.getItem('openclaw-gateways') || JSON.stringify(DEFAULT_GATEWAYS));
+    gateways.forEach(g => { g.status = g.status || 'disconnected'; g.agents = g.agents ?? 0; g.sessions = g.sessions ?? 0; g.channels = g.channels ?? 0; });
+
+    const LIVE_BY_GATEWAY = {};
+    let wsConnections = {};
+    let proxyWs = null;
+    let proxyMode = false;
+    const pendingResolve = {};
+
+    function nextId() { return 'mc-' + Math.random().toString(36).slice(2, 11); }
+    function nowTime() { const d = new Date(); return d.toTimeString().slice(0, 5); }
+
+    function connectGateway(gw) {
+      if (proxyMode) return;
+      if (!gw.wsUrl || wsConnections[gw.id]) return;
+      const url = gw.wsUrl;
+      let challengeNonce = null;
+      let resolved = false;
+      try {
+        const ws = new WebSocket(url);
+        wsConnections[gw.id] = ws;
+        LIVE_BY_GATEWAY[gw.id] = { working: [], tasks: [], jobs: [], approvals: [], activity: [] };
+        gw.status = 'connecting';
+        renderOverview();
+        renderTable();
+        ws.onopen = () => { pushActivity(gw.id, 'WebSocket opened'); };
+        ws.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === 'event' && msg.event === 'connect.challenge') {
+              challengeNonce = msg.payload?.nonce || '';
+              const req = {
+                type: 'req',
+                id: nextId(),
+                method: 'connect',
+                params: {
+                  minProtocol: 3,
+                  maxProtocol: 3,
+                  client: { id: 'mission-control', version: '1.0', platform: 'web', mode: 'operator' },
+                  role: 'operator',
+                  scopes: ['operator.read', 'operator.write', 'operator.approvals'],
+                  auth: { token: gw.token || '' },
+                  device: { id: 'mc-' + gw.id, nonce: challengeNonce, publicKey: '', signature: '' }
+                }
+              };
+              ws.send(JSON.stringify(req));
+              return;
+            }
+            if (msg.type === 'res' && msg.ok && msg.payload?.type === 'hello-ok') {
+              resolved = true;
+              gw.status = 'connected';
+              pushActivity(gw.id, 'Connected');
+              document.getElementById('liveBadge').classList.remove('hidden');
+              fetchGatewayState(gw.id, ws);
+              return;
+            }
+            if (msg.type === 'res' && !msg.ok) {
+              gw.status = 'error';
+              pushActivity(gw.id, 'Auth failed: ' + (msg.error || 'device auth may be required'));
+              renderOverview();
+              renderTable();
+              return;
+            }
+            if (msg.type === 'res' && msg.id) {
+              const pending = ws._pending && ws._pending[msg.id];
+              if (pending) { pending.resolve(msg); delete ws._pending[msg.id]; }
+              return;
+            }
+            if (msg.type === 'event') {
+              pushActivity(gw.id, msg.event + (msg.payload ? ': ' + JSON.stringify(msg.payload).slice(0, 80) : ''));
+              if (msg.event === 'exec.approval.requested') {
+                const a = { id: msg.payload?.id || nextId(), action: msg.payload?.action || 'exec', summary: msg.payload?.summary || '', gatewayId: gw.id };
+                if (!LIVE_BY_GATEWAY[gw.id].approvals.find(x => x.id === a.id)) LIVE_BY_GATEWAY[gw.id].approvals.push(a);
+                renderApprovals();
+              }
+            }
+          } catch (e) { console.warn('WS parse', e); }
+        };
+        ws.onclose = () => {
+          delete wsConnections[gw.id];
+          if (!resolved) gw.status = 'disconnected';
+          else gw.status = 'disconnected';
+          pushActivity(gw.id, 'Disconnected');
+          if (Object.keys(wsConnections).length === 0) document.getElementById('liveBadge').classList.add('hidden');
+          renderOverview();
+          renderTable();
+          renderStats();
+        };
+        ws.onerror = () => { gw.status = 'error'; renderOverview(); renderTable(); };
+        ws._pending = {};
+      } catch (e) {
+        gw.status = 'error';
+        pushActivity(gw.id, 'Connect error: ' + e.message);
+        renderOverview();
+        renderTable();
+      }
+    }
+
+    function pushActivity(gatewayId, msg) {
+      if (!LIVE_BY_GATEWAY[gatewayId]) return;
+      LIVE_BY_GATEWAY[gatewayId].activity.unshift({ time: nowTime(), msg, gatewayId });
+      LIVE_BY_GATEWAY[gatewayId].activity.splice(20);
+      renderActivity();
+    }
+
+    async function fetchGatewayState(gatewayId, ws) {
+      const gw = gateways.find(g => g.id === gatewayId);
+      if (!gw) return;
+      const statusRes = await sendReq(gatewayId, 'status', {});
+      if (statusRes?.payload) {
+        gw.agents = statusRes.payload.agents ?? gw.agents;
+        gw.sessions = statusRes.payload.sessions ?? gw.sessions;
+        gw.channels = statusRes.payload.channels ?? gw.channels;
+      }
+      const agentsRes = await sendReq(gatewayId, 'agent.list', {}) || await sendReq(gatewayId, 'agent', {});
+      if (agentsRes?.payload?.agents) gw.agents = agentsRes.payload.agents.length;
+      const sessionsRes = await sendReq(gatewayId, 'sessions.list', {}) || await sendReq(gatewayId, 'sessions', {});
+      if (sessionsRes?.payload?.sessions) {
+        gw.sessions = sessionsRes.payload.sessions.length;
+        const live = LIVE_BY_GATEWAY[gatewayId];
+        if (live) live.tasks = (sessionsRes.payload.sessions || []).map(s => ({ id: s.id, title: s.title || s.id, status: s.status || 'in_progress', gatewayId }));
+      }
+      const channelsRes = await sendReq(gatewayId, 'channels.list', {}) || await sendReq(gatewayId, 'channels', {});
+      if (channelsRes?.payload?.channels) gw.channels = channelsRes.payload.channels.length;
+      renderOverview();
+      renderTable();
+      renderStats();
+      renderTasks();
+    }
+
+    function disconnectGateway(gatewayId) {
+      const ws = wsConnections[gatewayId];
+      if (ws) { ws.close(); delete wsConnections[gatewayId]; }
+    }
 
     const MOCK_WORKING = [
       { gatewayId: 'ceo', agent: 'Sec', task: 'Summarize Q4 report and draft exec summary', progress: 65 },
@@ -1142,15 +1326,39 @@
 
     function gatewayName(id) { return gateways.find(g => g.id === id)?.name || id; }
 
+    function hasLiveConnection() { return Object.keys(wsConnections).length > 0; }
+    function mergedWorking() {
+      if (!hasLiveConnection()) return MOCK_WORKING;
+      return Object.entries(LIVE_BY_GATEWAY).flatMap(([gid, d]) => (d.working || []).map(w => ({ ...w, gatewayId: gid }))).slice(0, 10) || MOCK_WORKING;
+    }
+    function mergedTasks() {
+      if (!hasLiveConnection()) return MOCK_TASKS;
+      return Object.entries(LIVE_BY_GATEWAY).flatMap(([gid, d]) => (d.tasks || []).map(t => ({ ...t, gatewayId: gid }))).slice(0, 20) || MOCK_TASKS;
+    }
+    function mergedJobs() {
+      if (!hasLiveConnection()) return MOCK_JOBS;
+      return Object.entries(LIVE_BY_GATEWAY).flatMap(([gid, d]) => (d.jobs || []).map(j => ({ ...j, gatewayId: gid }))).slice(0, 20) || MOCK_JOBS;
+    }
+    function mergedApprovals() {
+      if (!hasLiveConnection()) return MOCK_APPROVALS;
+      return Object.entries(LIVE_BY_GATEWAY).flatMap(([gid, d]) => (d.approvals || []).map(a => ({ ...a, gatewayId: gid }))) || MOCK_APPROVALS;
+    }
+    function mergedActivity() {
+      if (!hasLiveConnection()) return MOCK_ACTIVITY;
+      return Object.entries(LIVE_BY_GATEWAY).flatMap(([gid, d]) => (d.activity || []).map(a => ({ ...a, gatewayId: gid }))).sort((a, b) => (b.time || '').localeCompare(a.time || '')).slice(0, 30) || MOCK_ACTIVITY;
+    }
+
     function renderStats() {
-      const jobsRunning = MOCK_JOBS.filter(j => j.status === 'running').length;
-      const jobsQueued = MOCK_JOBS.filter(j => j.status === 'queued').length;
-      const jobsDone = MOCK_JOBS.filter(j => j.status === 'completed').length;
-      const jobsFailed = MOCK_JOBS.filter(j => j.status === 'failed').length;
-      const tasksPending = MOCK_TASKS.filter(t => t.status === 'pending').length;
-      const tasksActive = MOCK_TASKS.filter(t => t.status === 'in_progress').length;
-      const tasksDone = MOCK_TASKS.filter(t => t.status === 'done').length;
-      const approvalsPending = MOCK_APPROVALS.length;
+      const jobs = mergedJobs();
+      const tasks = mergedTasks();
+      const approvals = mergedApprovals();
+      const jobsRunning = jobs.filter(j => j.status === 'running').length;
+      const jobsQueued = jobs.filter(j => j.status === 'queued').length;
+      const jobsDone = jobs.filter(j => j.status === 'completed').length;
+      const jobsFailed = jobs.filter(j => j.status === 'failed').length;
+      const tasksPending = tasks.filter(t => t.status === 'pending').length;
+      const tasksActive = tasks.filter(t => t.status === 'in_progress').length;
+      const approvalsPending = approvals.length;
 
       document.getElementById('statsStrip').innerHTML = `
         <div class="stat-box"><div class="stat-label">Jobs running</div><div class="stat-value">${jobsRunning}</div></div>
@@ -1165,8 +1373,9 @@
 
     function renderWorking() {
       const el = document.getElementById('workingPanel');
-      if (!MOCK_WORKING.length) { el.innerHTML = '<div class="empty-state">No active work</div>'; return; }
-      el.innerHTML = MOCK_WORKING.map(w => `
+      const working = mergedWorking();
+      if (!working.length) { el.innerHTML = '<div class="empty-state">No active work</div>'; return; }
+      el.innerHTML = working.map(w => `
         <div class="working-item">
           <div class="working-agent">${w.agent}</div>
           <div class="working-task">${w.task}</div>
@@ -1177,7 +1386,8 @@
 
     function renderTasks() {
       const el = document.getElementById('tasksPanel');
-      el.innerHTML = MOCK_TASKS.map(t => `
+      const tasks = mergedTasks();
+      el.innerHTML = tasks.map(t => `
         <div class="task-row">
           <span class="task-status-dot ${t.status}"></span>
           <span class="task-title">${t.title}</span>
@@ -1188,12 +1398,13 @@
 
     function renderJobs() {
       const el = document.getElementById('jobsPanel');
-      el.innerHTML = MOCK_JOBS.map(j => `
+      const jobs = mergedJobs();
+      el.innerHTML = jobs.map(j => `
         <div class="job-row">
-          <span>${j.type}</span>
+          <span>${j.type || '—'}</span>
           <span class="job-badge ${j.status}">${j.status}</span>
           <span>${gatewayName(j.gatewayId)}</span>
-          <span style="color:var(--text-dim)">${j.duration} ${j.started ? '· ' + j.started : ''}</span>
+          <span style="color:var(--text-dim)">${j.duration || '—'} ${j.started ? '· ' + j.started : ''}</span>
         </div>
       `).join('');
     }
@@ -1214,9 +1425,10 @@
 
     function renderApprovals() {
       const el = document.getElementById('approvalsPanel');
-      document.getElementById('approvalsCount').textContent = MOCK_APPROVALS.length;
-      if (!MOCK_APPROVALS.length) { el.innerHTML = '<div class="empty-state">No pending approvals</div>'; return; }
-      el.innerHTML = MOCK_APPROVALS.map(a => `
+      const approvals = mergedApprovals();
+      document.getElementById('approvalsCount').textContent = approvals.length;
+      if (!approvals.length) { el.innerHTML = '<div class="empty-state">No pending approvals</div>'; return; }
+      el.innerHTML = approvals.map(a => `
         <div class="approval-item">
           <div>
             <div>${a.action}</div>
@@ -1232,7 +1444,8 @@
 
     function renderActivity() {
       const el = document.getElementById('activityPanel');
-      el.innerHTML = MOCK_ACTIVITY.map(a => `
+      const activity = mergedActivity();
+      el.innerHTML = activity.map(a => `
         <div class="activity-item">
           <span class="activity-time">${a.time}</span>
           <div>
@@ -1390,6 +1603,7 @@
       document.getElementById('gwName').value = gw.name || '';
       document.getElementById('gwWsUrl').value = gw.wsUrl || '';
       document.getElementById('gwControlUrl').value = gw.controlUiUrl || '';
+      document.getElementById('gwToken').value = gw.token || '';
       document.getElementById('modalOverlay').classList.add('open');
     }
 
@@ -1404,10 +1618,13 @@
       gw.name = data.name;
       gw.wsUrl = data.wsUrl;
       gw.controlUiUrl = data.controlUiUrl || null;
+      gw.token = data.token || null;
+      disconnectGateway(id);
       localStorage.setItem('openclaw-gateways', JSON.stringify(gateways));
       renderOverview();
       renderTable();
       closeModal();
+      connectGateway(gw);
     }
 
     function saveGateway(data) {
@@ -1416,6 +1633,7 @@
         name: data.name,
         wsUrl: data.wsUrl,
         controlUiUrl: data.controlUiUrl || null,
+        token: data.token || null,
         status: 'disconnected',
         agents: 0,
         sessions: 0,
@@ -1426,6 +1644,7 @@
       renderOverview();
       renderTable();
       closeModal();
+      connectGateway(gw);
     }
 
     document.getElementById('detailClose').addEventListener('click', closeDetail);
@@ -1443,7 +1662,8 @@
         id: document.getElementById('gwId').value.trim(),
         name: document.getElementById('gwName').value.trim(),
         wsUrl: document.getElementById('gwWsUrl').value.trim(),
-        controlUiUrl: document.getElementById('gwControlUrl').value.trim() || null
+        controlUiUrl: document.getElementById('gwControlUrl').value.trim() || null,
+        token: document.getElementById('gwToken').value.trim() || null
       };
       if (editingGatewayId) {
         updateGateway(editingGatewayId, data);
@@ -1452,6 +1672,59 @@
         document.getElementById('addGatewayForm').reset();
       }
     });
+
+    const DEFAULT_PANELS = { working: true, tasks: true, jobs: true, against: true, approvals: true, activity: true };
+    let panelVisibility = JSON.parse(localStorage.getItem('openclaw-mc-panels') || JSON.stringify(DEFAULT_PANELS));
+    function applyPanelVisibility() {
+      document.querySelectorAll('[data-panel]').forEach(el => {
+        const key = el.getAttribute('data-panel');
+        el.setAttribute('data-hidden', panelVisibility[key] === false ? 'true' : 'false');
+      });
+    }
+    function exportGatewaysCSV() {
+      const headers = ['id', 'name', 'status', 'agents', 'sessions', 'channels', 'controlUiUrl'];
+      const rows = gateways.map(g => [g.id, g.name, g.status, g.agents ?? 0, g.sessions ?? 0, g.channels ?? 0, g.controlUiUrl || ''].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'mission-control-gateways-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function exportGatewaysJSON() {
+      const data = { exportedAt: new Date().toISOString(), gateways: gateways.map(g => ({ id: g.id, name: g.name, status: g.status, agents: g.agents ?? 0, sessions: g.sessions ?? 0, channels: g.channels ?? 0, controlUiUrl: g.controlUiUrl || null })) };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'mission-control-gateways-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const menu = document.getElementById('exportMenu');
+      menu.classList.toggle('hidden');
+    });
+    document.getElementById('exportMenu').querySelectorAll('[data-export]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('exportMenu').classList.add('hidden');
+        if (btn.dataset.export === 'csv') exportGatewaysCSV();
+        else if (btn.dataset.export === 'json') exportGatewaysJSON();
+      });
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.export-dropdown')) document.getElementById('exportMenu').classList.add('hidden');
+    });
+    document.getElementById('customizeBtn').addEventListener('click', () => {
+      const names = { working: 'Currently Working', tasks: 'Tasks', jobs: 'Jobs', against: 'Working Against', approvals: 'Pending Approvals', activity: 'Recent Activity' };
+      const key = prompt('Toggle panel (enter key): ' + Object.entries(names).map(([k, v]) => k + '=' + v).join(', '));
+      if (key && names[key] !== undefined) {
+        panelVisibility[key] = !panelVisibility[key];
+        localStorage.setItem('openclaw-mc-panels', JSON.stringify(panelVisibility));
+        applyPanelVisibility();
+      }
+    });
+    applyPanelVisibility();
 
     // Sort table
     let sortDir = {};
@@ -1470,6 +1743,76 @@
       });
     });
 
+    function connectViaProxy(apiGateways) {
+      proxyMode = true;
+      gateways.length = 0;
+      apiGateways.forEach(g => gateways.push({ id: g.id, name: g.name, wsUrl: g.wsUrl, controlUiUrl: g.controlUiUrl || null, status: 'connecting', agents: 0, sessions: 0, channels: 0 }));
+      const wsUrl = location.origin.replace(/^http/, 'ws') + '/ws';
+      try {
+        proxyWs = new WebSocket(wsUrl);
+        proxyWs.onopen = () => {
+          document.getElementById('liveBadge').classList.remove('hidden');
+          gateways.forEach(gw => { gw.status = 'connected'; LIVE_BY_GATEWAY[gw.id] = { working: [], tasks: [], jobs: [], approvals: [], activity: [] }; pushActivity(gw.id, 'Connected via proxy'); });
+          gateways.forEach(gw => fetchGatewayState(gw.id, proxyWs));
+          renderOverview();
+          renderTable();
+          fetchFederationHealth();
+        };
+        proxyWs.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            const gid = msg.gatewayId;
+            if (!gid) return;
+            if (msg.type === 'res' && msg.id && pendingResolve[msg.id]) {
+              pendingResolve[msg.id](msg);
+              delete pendingResolve[msg.id];
+              return;
+            }
+            if (msg.type === 'event') {
+              pushActivity(gid, msg.event + (msg.payload ? ': ' + JSON.stringify(msg.payload).slice(0, 80) : ''));
+              if (msg.event === 'exec.approval.requested' && LIVE_BY_GATEWAY[gid]) {
+                const a = { id: msg.payload?.id || nextId(), action: msg.payload?.action || 'exec', summary: msg.payload?.summary || '', gatewayId: gid };
+                if (!LIVE_BY_GATEWAY[gid].approvals.find(x => x.id === a.id)) LIVE_BY_GATEWAY[gid].approvals.push(a);
+                renderApprovals();
+              }
+            }
+          } catch (e) { console.warn('Proxy message', e); }
+        };
+        proxyWs.onclose = () => {
+          proxyMode = false;
+          proxyWs = null;
+          gateways.forEach(gw => { gw.status = 'disconnected'; });
+          document.getElementById('liveBadge').classList.add('hidden');
+          renderOverview();
+          renderTable();
+        };
+        proxyWs._pending = pendingResolve;
+      } catch (e) {
+        proxyMode = false;
+        gateways.forEach(gw => { gw.status = 'error'; });
+        renderOverview();
+        renderTable();
+      }
+    }
+
+    function sendReq(gatewayId, method, params = {}) {
+      if (proxyMode && proxyWs && proxyWs.readyState === WebSocket.OPEN) {
+        const id = nextId();
+        return new Promise((resolve) => {
+          pendingResolve[id] = resolve;
+          proxyWs.send(JSON.stringify({ gatewayId, type: 'req', id, method, params }));
+        });
+      }
+      const ws = wsConnections[gatewayId];
+      if (!ws || ws.readyState !== WebSocket.OPEN) return Promise.resolve(null);
+      const id = nextId();
+      return new Promise(resolve => {
+        ws._pending = ws._pending || {};
+        ws._pending[id] = { resolve };
+        ws.send(JSON.stringify({ type: 'req', id, method, params }));
+      });
+    }
+
     renderStats();
     renderOverview();
     renderTable();
@@ -1479,6 +1822,38 @@
     renderAgainst();
     renderApprovals();
     renderActivity();
+    async function fetchFederationHealth() {
+      const section = document.getElementById('federationSection');
+      const statusEl = document.getElementById('federationStatus');
+      if (!section || !statusEl) return;
+      try {
+        const r = await fetch('/api/federation/health');
+        section.style.display = 'block';
+        if (r.ok) {
+          const d = await r.json();
+          statusEl.textContent = d.ok ? 'OK · ' + (d.service || 'hub') : (d.error || 'Error');
+        } else {
+          statusEl.textContent = r.status === 404 ? 'Not configured' : 'Unreachable';
+        }
+      } catch (_) {
+        section.style.display = 'block';
+        statusEl.textContent = 'Unreachable';
+      }
+    }
+
+    (async () => {
+      try {
+        const r = await fetch('/api/gateways');
+        if (r.ok) {
+          const d = await r.json();
+          if (d.gateways && d.gateways.length) {
+            connectViaProxy(d.gateways);
+            return;
+          }
+        }
+      } catch (_) {}
+      gateways.forEach(gw => { if (gw.wsUrl) connectGateway(gw); });
+    })();
   </script>
 </body>
 </html>

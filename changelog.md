@@ -4,7 +4,68 @@ All notable changes to the Raise The OpenClaw project are documented here.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added (Federation Hub Intel Share)
+
+- **OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md** — Design for passing memory (intel/logistics) to the Federation Hub via store or `POST /federation/share`, then sharing to internal mesh (bridge/store) and optionally to external meshes; Army-style ranking and unit/theater control who can push and who can receive. Data model: optional `audience`, `targetUnit`, `targetTheater` in wrapper or `value._meta`.
+- **Federation hub `POST /federation/share`** — Internal endpoint (auth: `internal.shareSecret` or `internal.shareBearer`). Body: single mesh message, array, or wrapper `{ messages, audience, targetUnit, targetTheater }`. Forwards to internal bridge; optionally writes to store; optional immediate outbound to external meshes. Metrics: `share_total`, `share_errors`.
+- **Federation hub store-to-bridge** — When `internal.storeToBridgeIntervalMs` is set, hub periodically reads store (scopes mesh + outboundScope) and skills, builds mesh messages, POSTs to internal bridge so memory written via store API reaches the internal mesh.
+- **Federation hub config** — `internal.shareSecret` / `shareBearer`, `registryUrl`, `thisTheater`, `shareWriteToStore`, `shareImmediateOutbound`, `storeToBridgeIntervalMs`; `externalMeshes[].theater`. [federation-hub/README.md](federation-hub/README.md) and config.example.json updated.
+- **OPENCLAW_MESH_FEDERATION_HUB.md** — New §3.4 Intel share (internal) with link to OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md; References table updated.
+- **OPENCLAW_ARMY_OF_OPENCLAW.md** — §1 Logistics/intel: memory can be pushed via hub (store or share), rank/unit/theater control push and receive; §9 References: link to OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md.
+- **README.md** — Reference implementations: federation-hub (share endpoint, store-to-bridge). Documentation table: added [Federation hub intel share](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md).
+
+### Added (Army of OpenClaw — design)
+
+- **OPENCLAW_ARMY_OF_OPENCLAW.md** — Design for a US Army–style hierarchy of OpenClaw nodes: chain of command, ranks/roles, units (squad → platoon → theater), orders (structured task format and flow), personnel registry (discovery; schema and population options), dispatcher (task router, placement, resilience), Mission Control as command post (unit view, roster, orders queue, optional missions). Data shapes: registry row and order; references to PRD, OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md, mesh request-response, OPENCLAW_MAC_MINI_CEO_PROMPTS.md, OPENCLAW_MISSION_CONTROL_DASHBOARD.md. Design only; no protocol change.
+- **PRD_EXPANSION.md** — New §12 Army of OpenClaw: goals (chain of command, discovery, task routing, resilience), scope (registry, orders format, dispatcher, Mission Control extensions), out of scope (no OpenClaw protocol change); link to OPENCLAW_ARMY_OF_OPENCLAW.md. References table updated with Army design doc.
+- **README.md** — Documentation table: added [OPENCLAW_ARMY_OF_OPENCLAW.md](OPENCLAW_ARMY_OF_OPENCLAW.md).
+
+### Added (Federation Hub)
+
+- **OPENCLAW_MESH_FEDERATION_HUB.md** — Design for a Federation Hub that connects your mesh to external meshes: purpose, topology (internal mesh + hub + external meshes), hub responsibilities (inbound/outbound), config schema, scope/allow-list, provenance (`external:<mesh-id>:<node-id>`), and security (filtering, optional signing). Links from OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md and PRD.
+- **PRD.md** — Federation: new glossary terms (Federation hub, External mesh, Federation scope, Provenance); optional Federation Hub in scope; new §9 data convention (federation scope/allow-list); §12 extended with second topology diagram (mesh + Federation Hub + external meshes); References link to OPENCLAW_MESH_FEDERATION_HUB.md.
+- **federation-hub/** — Reference implementation: Node server with `POST /federation/in` (inbound), optional **outbound** (poll store API by `outboundScope`/allow-list, POST to external meshes), optional message signing (sign outbound, verify inbound per-mesh public key), `GET /metrics` (Prometheus-style). Config: `outboundPollIntervalMs`, `signOutbound`, `verifyInbound`, `privateKeyPath`/`privateKeyEnv`, per-mesh `publicKey`.
+- **README.md** — Reference implementations table and Documentation table: added [federation-hub/](federation-hub/) and [OPENCLAW_MESH_FEDERATION_HUB.md](OPENCLAW_MESH_FEDERATION_HUB.md).
+
+### Added (Expansion PRD)
+
+- **PRD_EXPANSION.md** — Product requirements for expansion (Phase 2): mesh store HTTP API, federation hub outbound, message signing, multi-tenancy, rate limiting, Mission Control public API and mesh/federation view, runbooks and federation hub metrics, optional CLI and semantic memory (design). Prioritized implementation order and references to ENTERPRISE_EXPAND, federation hub, and store access-model.
+- **README.md** — Documentation table: added [PRD — Expansion](PRD_EXPANSION.md).
+
+### Added (Expansion implementation)
+
+- **mesh/store/api-server.js** — HTTP API for mesh memory and skills (access-model Option A): GET/PUT `/mesh/memory`, GET/PUT `/mesh/skills`, optional auth (API key or Bearer), optional rate limit (`MESH_STORE_RATE_LIMIT_PER_MIN`), GET `/health`. Backend: existing store client (SQLite). [mesh/store/README.md](mesh/store/README.md) updated.
+- **Federation hub outbound** — Hub polls `internal.storeApiUrl` for memory (by `outboundScope`) and skills, filters by `outboundKeysAllowList`, converts to mesh messages, POSTs to each external mesh with `direction` outbound/both; optional `outboundBearer` per mesh. Config: `outboundPollIntervalMs`, `storeApiUrl`, `storeAuth`.
+- **docs/RUNBOOKS.md** — Runbooks: add external mesh, rotate federation API key, deploy mesh store API, point federation hub at new bridge/store.
+- **Federation hub GET /metrics** — Prometheus-style counters: inbound_total, inbound_errors, forward_errors, outbound_ok, outbound_errors. `FEDERATION_HUB_METRICS=0` disables.
+- **mesh/signing.js** — Optional Ed25519 message signing: `canonicalMessage`, `signMessage`, `verifyMessage`. **docs/MESSAGE_SIGNING.md** — Payload format, key distribution, key generation; ENTERPRISE_EXPAND §5 updated with link. Federation hub: config `signOutbound`, `verifyInbound`, `privateKeyPath`/`privateKeyEnv`, per-mesh `publicKey`.
+- **Mission Control mesh/federation view** — Proxy: `GET /api/federation/health` (when `OPENCLAW_MC_FEDERATION_HUB_URL` set). Dashboard: “Mesh & Federation” section with federation hub status when in proxy mode. [mission-control/proxy/README.md](mission-control/proxy/README.md) updated.
+- **Rate limiting** — Bridge webhook: `BRIDGE_RATE_LIMIT_PER_MIN` (per IP or auth key), 429 when exceeded. Mesh store API: `MESH_STORE_RATE_LIMIT_PER_MIN`, 429 when exceeded.
+- **Multi-tenancy (Mission Control)** — Proxy: optional `OPENCLAW_MC_TENANT_HEADER`; gateways may include `tenantId`; list filtered by request header. Gateway config and README support tenantId.
+- **scripts/mesh-cli.js** — CLI: get-memory, put-memory, list-memory, get-skill, put-skill, list-skills using local cache or store API (`MESH_STORE_URL`). README reference implementations table updated.
+- **docs/SEMANTIC_MEMORY_DESIGN.md** — Design-only: optional vector/semantic layer for mesh memory (embeddings, similarity search); fit with scope/key model; implementation out of scope.
+- **README.md** — Reference implementations: federation-hub (outbound, metrics, signing), mesh store API server, mesh CLI.
+
+## [0.6.0] — 2026-02-27
+
+### Added (WoW and enterprise expansion)
+
+- **Mission Control — live WebSocket:** Dashboard connects to OpenClaw gateways (port 18789), performs connect.challenge/connect handshake with operator role, fetches status/agent.list/sessions.list/channels.list, and displays live data. LIVE badge when connected; mock data fallback when disconnected. Optional token per gateway (localStorage) for direct mode.
+- **Mission Control — backend proxy:** [mission-control/proxy/](mission-control/proxy/) — Node server that holds gateway config and tokens, serves the dashboard, and exposes a single WebSocket (`/ws`) that multiplexes to all gateways. Frontend detects proxy via `GET /api/gateways` and connects to `/ws`; tokens never reach the browser. Config via `OPENCLAW_MC_GATEWAYS` or `gateways.json`. README and gateways.json.example added.
+- **Mission Control — export and customize:** Export gateways table as CSV or JSON (Export button in header). Customize: show/hide panels (Working, Tasks, Jobs, Working Against, Approvals, Activity) with persistence in localStorage.
+- **Bridge webhook — optional auth:** Env `BRIDGE_AUTH_HEADER`+`BRIDGE_AUTH_SECRET` (API key) or `BRIDGE_AUTH_BEARER`; POST /ingest and /bridge return 401 when auth is configured and missing/invalid. [ENTERPRISE_SECURITY.md](ENTERPRISE_SECURITY.md) and bridge README updated.
+- **Bridge webhook — observability:** Structured JSON logging (reqId, path, ingested, error); optional `GET /metrics` (Prometheus-style: ingest_total, ingest_errors, bridge_total, bridge_errors); `GET /health` extended with `cacheWritable` (cache dir writability). `BRIDGE_METRICS=0` disables metrics.
+- **ENTERPRISE_SECURITY.md** — Mission Control proxy and tokens, bridge auth and TLS, mesh store access, summary table.
+- **OBSERVABILITY.md** — Bridge logging, metrics, health; Mission Control proxy health; audit and retention notes; alerting suggestions.
+- **docs/RUNBOOKS.md** — Add gateway, rotate token, recover mesh store, scale bridge ingest, enable bridge auth.
+- **DEPLOYMENT.md** — Docker Compose example (Mission Control proxy + bridge), Dockerfile.mc, Kubernetes outline, single-host.
+- **docs/ENTERPRISE_EXPAND.md** — Multi-tenancy (mesh + Mission Control), public API for Mission Control and mesh store, rate limiting, message signing (design/options).
+- **OPENCLAW_MISSION_CONTROL_DASHBOARD.md** — New §9 Mission Control protocol integration (direct + proxy, export, customize); §10 References with Mission Control and proxy README links.
+- **mission-control/README.md** — Updated for live WebSocket, proxy mode, export, customize, protocol integration.
+
+### Changed
+
+- **mission-control/index.html** — Token field in Add/Edit gateway form; LIVE badge; WebSocket connect and live data merge; proxy detection and connectViaProxy; sendReq supports proxy and direct; export dropdown and customize panel visibility; data-panel attributes and applyPanelVisibility.
 
 ## [0.5.2] — 2026-02-27
 

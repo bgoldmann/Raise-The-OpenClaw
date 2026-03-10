@@ -16,6 +16,19 @@ CREATE TABLE IF NOT EXISTS mesh_memory (
 CREATE INDEX IF NOT EXISTS idx_mesh_memory_scope_key ON mesh_memory(scope, key);
 CREATE INDEX IF NOT EXISTS idx_mesh_memory_updated_at ON mesh_memory(updated_at);
 
+-- FTS5 full-text search for mesh_memory. Sync from application on putMemory (see client.js).
+-- content = searchable text extracted from value + key.
+CREATE VIRTUAL TABLE IF NOT EXISTS mesh_memory_fts USING fts5(
+  scope,
+  key,
+  content,
+  tokenize='unicode61'
+);
+
+-- Vector search (optional): requires sqlite-vec, MESH_VECTOR_ENABLED=1, MESH_EMBEDDING_URL.
+-- Created by client.js when vector is enabled. Dimension must match embedding model (default 768).
+-- CREATE VIRTUAL TABLE mesh_memory_vec USING vec0(id integer primary key, scope text, embedding float[768] distance_metric=cosine);
+
 -- Shared skills: name, source_node, content or path, updated_at (FR-2.2)
 CREATE TABLE IF NOT EXISTS mesh_skills (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

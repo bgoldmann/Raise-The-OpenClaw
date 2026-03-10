@@ -41,6 +41,7 @@ if (store) {
   const row = store.getMemory('mesh', 'user.preferences');
   store.putSkill('triage', 'ceo', '# Triage rules\n...');
   const list = store.listMemory('mesh');
+  const matches = store.searchMemory('research lessons', { scope: 'mesh', limit: 10 });
 }
 
 // Sync from shared store into local Phase 1 cache (~/.openclaw/mesh-memory.json, mesh/skills/)
@@ -57,7 +58,15 @@ If `better-sqlite3` is not installed, `openStore()` returns `null` and no SQLite
 MESH_STORE_DB_PATH=/path/to/mesh-store.sqlite node mesh/store/api-server.js 4078
 ```
 
-Optional auth: `MESH_STORE_AUTH_HEADER=X-API-Key` + `MESH_STORE_AUTH_SECRET=secret`, or `MESH_STORE_AUTH_BEARER=token`. Optional rate limit: `MESH_STORE_RATE_LIMIT_PER_MIN=120` (429 when exceeded). Endpoints: `GET /health`, `GET/PUT /mesh/memory`, `GET/PUT /mesh/skills`. Requires `better-sqlite3`; without it or without `MESH_STORE_DB_PATH`, `/mesh/*` returns 503.
+Optional auth: `MESH_STORE_AUTH_HEADER=X-API-Key` + `MESH_STORE_AUTH_SECRET=secret`, or `MESH_STORE_AUTH_BEARER=token`. Optional rate limit: `MESH_STORE_RATE_LIMIT_PER_MIN=120` (429 when exceeded).
+
+Endpoints: `GET /health`, `GET/PUT /mesh/memory`, `GET /mesh/memory/:scope/:key`, `POST /mesh/query`, `GET/PUT /mesh/skills`.
+
+**Full-text search:** `GET /mesh/memory?q=<query>` or `POST /mesh/query` (body: `{ query, scope?, limit? }`) — returns `[{ scope, key, snippet }]`. Use `GET /mesh/memory/:scope/:key` to fetch full values. FTS5 index is synced on `PUT /mesh/memory`; existing DBs are backfilled on first open.
+
+**Semantic (vector) search:** Add `?mode=semantic` or `{ mode: 'semantic' }` to use similarity search. Requires `MESH_VECTOR_ENABLED=1`, `MESH_EMBEDDING_URL` (e.g. `http://localhost:11434/api/embed` for Ollama), `sqlite-vec` package. Returns `[{ scope, key, distance }]`. Run `npm run run:vec-backfill` for existing memories.
+
+Requires `better-sqlite3`; without it or without `MESH_STORE_DB_PATH`, `/mesh/*` returns 503.
 
 ## Bootstrap
 

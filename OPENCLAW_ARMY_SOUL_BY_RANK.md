@@ -22,7 +22,7 @@ See [OPENCLAW_ARMY_OF_OPENCLAW.md §3.2](OPENCLAW_ARMY_OF_OPENCLAW.md#32-skills-
 
 Roles improve by **learning from mistakes** and **upgrading skills** over time. Design: [OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md](OPENCLAW_ROLES_LEARNING_AND_SKILL_UPGRADE.md).
 
-- **Before executing an order:** Read mesh memory for recent lessons for your role (e.g. key `lessons_by_role:<your role>`) and avoid repeating past errors.
+- **Before executing an order:** Read mesh memory for recent lessons for your role (e.g. key `lessons_by_role:<your role>`) and avoid repeating past errors. When a **search_memory** or **query_memory** tool is available (store API `GET /mesh/memory?q=...` or `POST /mesh/query`), use it to search for relevant lessons, intel, or context (e.g. "lessons about research", "intel on project Alpha") so you have full context before executing.
 - **When you report_up:** Include a brief note if something went wrong so it can be recorded as a lesson for future tasks.
 - **Every order, every day:** Apply lessons and follow updated skill docs (e.g. lessons-learned) when provided so you keep upgrading.
 
@@ -54,7 +54,7 @@ Use this as the **default agent** on the **command gateway** (e.g. CEO-style nod
 
 ### Tools
 
-- **Allowed:** `memory`; **issue_order** (tool or script that POSTs order to dispatcher: orderId, addressee, payload, priority); optional `sessions_spawn`, `sessions_list`, `sessions_send` for local agents only.
+- **Allowed:** `memory`; **search_memory** (query mesh memory by full-text via store API `GET /mesh/memory?q=` or `POST /mesh/query` — use to find intel, lessons, or context before issuing orders); **issue_order** (tool or script that POSTs order to dispatcher: orderId, addressee, payload, priority); optional `sessions_spawn`, `sessions_list`, `sessions_send` for local agents only.
 - **Forbidden:** exec, browser, workspace write beyond own session.
 
 ### SOUL block — General

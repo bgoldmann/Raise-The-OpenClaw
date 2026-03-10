@@ -1,6 +1,6 @@
 # Semantic / vector memory (design only)
 
-Optional **vector layer** for mesh memory: store embeddings of memory values and support **similarity search** (“query by meaning”) in addition to scope/key lookup. This doc is **design only**; implementation is out of scope for the current PRD.
+Optional **vector layer** for mesh memory: store embeddings of memory values and support **similarity search** (“query by meaning”) in addition to scope/key lookup. **v1 implemented:** Full-text search (SQLite FTS5). **v2 implemented:** Vector/semantic search via sqlite-vec. Use `GET /mesh/memory?q=<query>` or `POST /mesh/query` with `mode: 'semantic'` for similarity search. Requires `MESH_VECTOR_ENABLED=1`, `MESH_EMBEDDING_URL` (Ollama `/api/embed` or OpenAI-compatible), and `sqlite-vec` npm package. See [mesh/store/README.md](../mesh/store/README.md).
 
 ---
 
@@ -20,10 +20,9 @@ Optional **vector layer** for mesh memory: store embeddings of memory values and
 
 ---
 
-## 3. Out of scope (for now)
+## 3. Implementation (v2)
 
-- Implementation of the indexer, vector DB, or embedding model.
-- Changes to mesh message formats or store schema for vector data.
-- Production deployment or benchmarking.
-
-Reference: research in [OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md](../OPENCLAW_MESH_KNOWLEDGE_SKILLS_SHARING.md) (§2.1) mentions vector DB (e.g. Milvus) and semantic memory; this doc captures the design for a future phase.
+- **sqlite-vec** stores embeddings in `mesh_memory_vec` vec0 table (cosine distance).
+- **Embedding provider:** [mesh/store/embedding.js](../mesh/store/embedding.js) — Ollama `/api/embed` or OpenAI-compatible `/v1/embeddings`.
+- **Env:** `MESH_VECTOR_ENABLED=1`, `MESH_EMBEDDING_URL`, `MESH_EMBEDDING_MODEL` (default `nomic-embed-text`), `MESH_EMBEDDING_DIMENSIONS` (default 768; must match model).
+- **Indexing:** Async on `putMemory`; run `npm run run:vec-backfill` for existing memories.

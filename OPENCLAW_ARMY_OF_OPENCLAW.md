@@ -195,6 +195,22 @@ For consistent **discovery/routing** (registry, dispatcher) and **least-privileg
 
 ---
 
+## 5a. Storage and memory keys
+
+Army intel, lessons, and orders use **mesh memory** with canonical scope/key conventions. These keys are searchable via the mesh store API (see [mesh/store/README.md](mesh/store/README.md)) when full-text search is enabled.
+
+| Scope | Key pattern | Content |
+|-------|-------------|---------|
+| `node` | `<nodeId>:lessons` | Lessons for this node (array of lesson objects). Written by [army/lessons.js](army/lessons.js) on order completion/failure/refusal. |
+| `mesh` | `lessons_by_role:<role>` | Lessons by role (e.g. `research`, `coding`). Shared across nodes with that role. |
+| `mesh` | `lessons_daily:YYYY-MM-DD` | Daily aggregated lessons for that date. Written by [scripts/lessons-daily.js](scripts/lessons-daily.js). |
+| `mesh` | `army.order.<orderId>` | Order payload ingested by the target node. Written by the dispatcher when sending an order. |
+| `mesh` | `intel:<topic>` or custom | Intel from Command/Colonel (via store or `POST /federation/share`). Optional `value._meta.targetUnit`, `targetTheater` per [OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md](OPENCLAW_FEDERATION_HUB_INTEL_SHARE.md). |
+
+**Search:** Use `GET /mesh/memory?q=<query>` or `POST /mesh/query` (store API) to search memory by full-text. Optional `scope` filter. Ranks can use a `search_memory` tool when preparing for orders; see [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md).
+
+---
+
 ## 6. Dispatcher (task router)
 
 - **Role:** Receives **orders** from Command (or any authorized issuer); looks up **registry** for addressee (by unit, role, or gatewayId); selects target(s); **sends task** to the right bridge channel or gateway webhook; optionally **tracks** (orderId → status, result) and **retries** or **failover** if target is down or busy.

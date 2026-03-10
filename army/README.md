@@ -41,6 +41,12 @@ When an order is **completed**, **failed**, or **refused** (PATCH with `status` 
 
 Agents should read `lessons_by_role:<their role>` (or their node's lessons key) before executing orders; see SOUL §1.1 in [OPENCLAW_ARMY_SOUL_BY_RANK.md](OPENCLAW_ARMY_SOUL_BY_RANK.md).
 
+## Storage and searchable memory
+
+Army memory keys follow conventions in [OPENCLAW_ARMY_OF_OPENCLAW.md §5a](OPENCLAW_ARMY_OF_OPENCLAW.md#5a-storage-and-memory-keys): `node:<id>:lessons`, `lessons_by_role:<role>`, `lessons_daily:YYYY-MM-DD`, `army.order.<orderId>`, `intel:<topic>`.
+
+**Search:** When the mesh store API is running, use `GET /mesh/memory?q=<query>` or `POST /mesh/query` for full-text search. Add `?mode=semantic` or `{ mode: 'semantic' }` for vector similarity search (requires Ollama or embedding API). Ranks can use a **search_memory** tool to find relevant lessons or intel before executing orders. See [mesh/store/README.md](mesh/store/README.md).
+
 ## API
 
 | Method | Path | Description |

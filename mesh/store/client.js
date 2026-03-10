@@ -2,6 +2,7 @@
  * OpenClaw Mesh Phase 2 — Shared store client (SQLite)
  * Optional: use when the shared store is a SQLite file (e.g. on NAS). Requires better-sqlite3.
  * For API-based stores, use fetch() against the endpoints in access-model.md.
+ * Optional vector search: requires sqlite-vec, MESH_VECTOR_ENABLED=1, MESH_EMBEDDING_URL.
  */
 
 const path = require('path');
@@ -13,6 +14,16 @@ try {
   db = null;
 }
 
+let sqliteVec;
+try {
+  sqliteVec = require('sqlite-vec');
+} catch {
+  sqliteVec = null;
+}
+
+const VECTOR_ENABLED = process.env.MESH_VECTOR_ENABLED === '1' && !!process.env.MESH_EMBEDDING_URL;
+const VEC_DIMENSIONS = parseInt(process.env.MESH_EMBEDDING_DIMENSIONS || '768', 10);
+
 const SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS mesh_memory (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   scope TEXT NOT NULL,
@@ -23,6 +34,7 @@ const SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS mesh_memory (
   UNIQUE(scope, key)
 );
 CREATE INDEX IF NOT EXISTS idx_mesh_memory_scope_key ON mesh_memory(scope, key);
+CREATE VIRTUAL TABLE IF NOT EXISTS mesh_memory_fts USING fts5(scope, key, content, tokenize='unicode61');
 CREATE TABLE IF NOT EXISTS mesh_skills (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
@@ -107,6 +119,101 @@ function openStore(dbPath) {
 
   const now = () => Math.floor(Date.now() / 1000);
 
+  /** Extract searchable text from memory value and key for FTS. */
+  function textFromValue(value, key) {
+    const parts = [key || ''];
+    if (typeof value === 'string') {
+      parts.push(value);
+    } else if (value && typeof value === 'object') {
+      const flatten = (obj, depth = 0) => {
+        if (depth > 3) return '';
+        if (typeof obj === 'string') return obj;
+        if (Array.isArray(obj)) return obj.map((v) => flatten(v, depth + 1)).join(' ');
+        if (obj && typeof obj === 'object') {
+          return Object.entries(obj)
+            .filter(([k]) => k !== '_meta')
+            .map(([, v]) => flatten(v, depth + 1))
+            .join(' ');
+        }
+        return String(obj);
+      };
+      parts.push(flatten(value));
+    }
+    return parts.join(' ').slice(0, 50000);
+  }
+
+  function syncFts(scope, key, content) {
+    try {
+      conn.prepare('DELETE FROM mesh_memory_fts WHERE scope = ? AND key = ?').run(scope, key);
+      conn.prepare('INSERT INTO mesh_memory_fts(scope, key, content) VALUES (?, ?, ?)').run(scope, key, content);
+    } catch (_) {}
+  }
+
+  function runFtsBackfill() {
+    try {
+      const rows = conn.prepare('SELECT scope, key, value FROM mesh_memory').all();
+      for (const r of rows) {
+        let val;
+        try { val = JSON.parse(r.value); } catch { val = r.value; }
+        syncFts(r.scope, r.key, textFromValue(val, r.key));
+      }
+    } catch (_) {}
+  }
+
+  // Migration: create FTS table if missing; backfill when FTS is empty but mesh_memory has rows
+  try {
+    const tables = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mesh_memory_fts'").get();
+    if (!tables) {
+      conn.exec("CREATE VIRTUAL TABLE IF NOT EXISTS mesh_memory_fts USING fts5(scope, key, content, tokenize='unicode61')");
+    }
+    const ftsCount = conn.prepare('SELECT COUNT(*) as n FROM mesh_memory_fts').get().n;
+    const memCount = conn.prepare('SELECT COUNT(*) as n FROM mesh_memory').get().n;
+    if (ftsCount === 0 && memCount > 0) runFtsBackfill();
+  } catch (_) {}
+
+  let vecLoaded = false;
+  if (VECTOR_ENABLED && sqliteVec && db) {
+    try {
+      sqliteVec.load(conn);
+      vecLoaded = true;
+      const vecTable = conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mesh_memory_vec'").get();
+      if (!vecTable) {
+        conn.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS mesh_memory_vec USING vec0(id integer primary key, scope text, embedding float[${VEC_DIMENSIONS}] distance_metric=cosine)`);
+      }
+    } catch (_) {}
+  }
+
+  const embeddingMod = (() => {
+    try {
+      return require(path.join(__dirname, 'embedding.js'));
+    } catch {
+      return null;
+    }
+  })();
+
+  function syncVec(memoryId, scope, embedding) {
+    if (!vecLoaded || !embedding || !(embedding instanceof Float32Array)) return;
+    try {
+      conn.prepare('DELETE FROM mesh_memory_vec WHERE id = ?').run(memoryId);
+      const insert = conn.prepare('INSERT INTO mesh_memory_vec(id, scope, embedding) VALUES (?, ?, ?)');
+      insert.run(memoryId, scope, embedding);
+    } catch (_) {}
+  }
+
+  function scheduleVecIndex(scope, key, text) {
+    if (!vecLoaded || !embeddingMod?.embed) return;
+    const content = (text || '').slice(0, 32000);
+    if (!content.trim()) return;
+    setImmediate(async () => {
+      try {
+        const row = conn.prepare('SELECT id FROM mesh_memory WHERE scope = ? AND key = ?').get(scope, key);
+        if (!row) return;
+        const vec = await embeddingMod.embed(content);
+        if (vec) syncVec(row.id, scope, vec);
+      } catch (_) {}
+    });
+  }
+
   function parseModelRanking(val) {
     if (val == null || val === '') return null;
     try {
@@ -132,6 +239,8 @@ function openStore(dbPath) {
       conn.prepare(
         'INSERT INTO mesh_memory (scope, key, value, node_id, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value, node_id = excluded.node_id, updated_at = excluded.updated_at'
       ).run(scope, key, valueStr, nodeId || 'unknown', now());
+      syncFts(scope, key, textFromValue(value, key));
+      if (vecLoaded) scheduleVecIndex(scope, key, textFromValue(value, key));
       return this.getMemory(scope, key);
     },
     listMemory(scope = null) {
@@ -145,6 +254,54 @@ function openStore(dbPath) {
           return r;
         }
       });
+    },
+    /** Full-text search over mesh memory. Returns { scope, key, snippet? }[]. Use getMemory(scope, key) for full value. */
+    searchMemory(query, options = {}) {
+      if (!query || typeof query !== 'string') return [];
+      try {
+        const scope = options.scope || null;
+        const limit = Math.min(Math.max(1, options.limit || 25), 100);
+        let rows;
+        if (scope) {
+          rows = conn.prepare(
+            "SELECT scope, key, snippet(mesh_memory_fts, 2, '', '', '', 64) as snippet FROM mesh_memory_fts WHERE mesh_memory_fts MATCH ? AND scope = ? LIMIT ?"
+          ).all(query, scope, limit);
+        } else {
+          rows = conn.prepare(
+            "SELECT scope, key, snippet(mesh_memory_fts, 2, '', '', '', 64) as snippet FROM mesh_memory_fts WHERE mesh_memory_fts MATCH ? LIMIT ?"
+          ).all(query, limit);
+        }
+        return rows.map((r) => ({ scope: r.scope, key: r.key, snippet: r.snippet || null }));
+      } catch (_) {
+        return [];
+      }
+    },
+    /** Semantic (vector) search over mesh memory. Async. Returns { scope, key, distance }[]. Requires MESH_VECTOR_ENABLED, MESH_EMBEDDING_URL, sqlite-vec. */
+    async semanticSearchMemory(query, options = {}) {
+      if (!vecLoaded || !embeddingMod?.embed) return [];
+      if (!query || typeof query !== 'string') return [];
+      try {
+        const vec = await embeddingMod.embed(query.trim().slice(0, 32000));
+        if (!vec || !(vec instanceof Float32Array)) return [];
+        const scope = options.scope || null;
+        const limit = Math.min(Math.max(1, options.limit || 25), 100);
+        let rows;
+        if (scope) {
+          rows = conn.prepare('SELECT v.id, v.scope, v.distance FROM mesh_memory_vec v WHERE v.embedding match ? AND k = ? AND v.scope = ?').all(vec, limit, scope);
+        } else {
+          rows = conn.prepare('SELECT v.id, v.scope, v.distance FROM mesh_memory_vec v WHERE v.embedding match ? AND k = ?').all(vec, limit);
+        }
+        const idToKey = new Map();
+        for (const r of rows) {
+          const mm = conn.prepare('SELECT key FROM mesh_memory WHERE id = ?').get(r.id);
+          if (mm) idToKey.set(r.id, mm.key);
+        }
+        return rows
+          .filter((r) => idToKey.has(r.id))
+          .map((r) => ({ scope: r.scope, key: idToKey.get(r.id), distance: r.distance }));
+      } catch (_) {
+        return [];
+      }
     },
     getSkill(name) {
       return conn.prepare('SELECT name, source_node, content, path, updated_at FROM mesh_skills WHERE name = ?').get(name) || null;
@@ -375,8 +532,29 @@ function syncStoreToLocalCache(dbPath, openclawDir) {
   return { memory, skills };
 }
 
+/**
+ * One-time backfill of mesh_memory_fts from mesh_memory. Use when FTS was added to an existing DB.
+ * @param {string} dbPath - Path to SQLite file
+ * @returns {number} Number of rows backfilled
+ */
+function runFtsBackfillStandalone(dbPath) {
+  if (!dbPath || !db) return 0;
+  const store = openStore(dbPath);
+  if (!store) return 0;
+  try {
+    const rows = store.listMemory();
+    for (const r of rows) {
+      store.putMemory(r.scope, r.key, r.value, r.node_id);
+    }
+    return rows.length;
+  } catch (_) {
+    return 0;
+  }
+}
+
 module.exports = {
   openStore,
   syncStoreToLocalCache,
+  runFtsBackfill: runFtsBackfillStandalone,
   SCHEMA_SQL,
 };

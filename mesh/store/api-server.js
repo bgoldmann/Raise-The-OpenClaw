@@ -13,6 +13,8 @@
  * Endpoints:
  *   GET  /health              — 200 + { ok, service, storeAvailable }
  *   GET  /mesh/memory?scope=  — list memory (optional scope)
+ *   GET  /mesh/memory?q=      — full-text or semantic search (?mode=semantic for vector)
+ *   POST /mesh/query          — body: { query, scope?, limit?, mode?: 'fts'|'semantic' }
  *   GET  /mesh/memory/:scope/:key — get one
  *   PUT  /mesh/memory         — body: { scope, key, value, node_id }
  *   GET  /mesh/skills         — list skills
@@ -105,11 +107,52 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET /mesh/memory?scope=mesh
+  // GET /mesh/memory?scope=mesh or ?q=query (full-text or semantic search)
   if (req.method === 'GET' && pathname === '/mesh/memory') {
+    const q = url.searchParams.get('q') || null;
     const scope = url.searchParams.get('scope') || null;
+    const limit = parseInt(url.searchParams.get('limit') || '25', 10);
+    const mode = (url.searchParams.get('mode') || 'fts').toLowerCase();
+    if (q) {
+      const opts = { scope: scope || undefined, limit };
+      let results;
+      if (mode === 'semantic' && typeof store.semanticSearchMemory === 'function') {
+        results = await store.semanticSearchMemory(q, opts);
+      } else {
+        results = store.searchMemory(q, opts);
+      }
+      send(res, 200, results);
+      return;
+    }
     const list = store.listMemory(scope);
     send(res, 200, list);
+    return;
+  }
+
+  // POST /mesh/query — full-text or semantic search (body: { query, scope?, limit?, mode?: 'fts'|'semantic' })
+  if (req.method === 'POST' && pathname === '/mesh/query') {
+    let body;
+    try {
+      const raw = await parseBody(req);
+      body = JSON.parse(raw || '{}');
+    } catch {
+      sendError(res, 400, 'Invalid JSON body');
+      return;
+    }
+    const query = body.query || body.q || null;
+    if (!query) {
+      sendError(res, 400, 'Missing query or q');
+      return;
+    }
+    const opts = { scope: body.scope || undefined, limit: body.limit || 25 };
+    const mode = (body.mode || 'fts').toLowerCase();
+    let results;
+    if (mode === 'semantic' && typeof store.semanticSearchMemory === 'function') {
+      results = await store.semanticSearchMemory(query, opts);
+    } else {
+      results = store.searchMemory(query, opts);
+    }
+    send(res, 200, results);
     return;
   }
 
@@ -196,8 +239,8 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.error('OpenClaw mesh store API listening on http://localhost:' + PORT);
   console.error('  GET  /health');
-  console.error('  GET  /mesh/memory?scope=mesh   PUT /mesh/memory');
-  console.error('  GET  /mesh/memory/:scope/:key');
+  console.error('  GET  /mesh/memory?scope=   GET /mesh/memory?q=   PUT /mesh/memory');
+  console.error('  POST /mesh/query   GET /mesh/memory/:scope/:key');
   console.error('  GET  /mesh/skills   GET /mesh/skills/:name   PUT /mesh/skills');
   if (!store) console.error('  WARN: Store not available (set MESH_STORE_DB_PATH and install better-sqlite3)');
 });

@@ -8,9 +8,13 @@
     "serve:mc": "npx serve mission-control",
     "run:bridge": "node bridge/webhook-server.js 4077",
     "run:mesh-cli": "node scripts/mesh-cli.js",
-    "run:lessons-daily": "node scripts/lessons-daily.js"
+    "run:lessons-daily": "node scripts/lessons-daily.js",
+    "run:vec-backfill": "node scripts/vec-backfill.js"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "sqlite-vec": "^0.1.7-alpha.2"
   }
 }

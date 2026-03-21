@@ -123,3 +123,31 @@ See [mesh/store/README.md](../mesh/store/README.md) and [mesh/store/access-model
 - **Dispatcher (Army server) down:** Restart the Army server: `MESH_STORE_DB_PATH=/path/to/mesh-store.sqlite node army/server.js 4080`. Pending orders remain in the store; no automatic retry of delivery. To retry a failed order, re-issue a new order with the same payload (or implement a replay that POSTs to `/army/orders` with a new orderId).
 - **Registry lost or corrupted:** The registry is stored in the same SQLite DB as the mesh store (`army_registry` table). Restore from a backup of that DB file. If no backup, re-register all nodes via `POST /army/register` (see **Add a node to the Army**).
 - **Dead-letter (failed orders):** List failed orders with `GET /army/orders?status=failed`. Review and either fix the target (e.g. correct `ingest_url`, bring node back) and re-issue, or leave as failed for audit.
+
+---
+
+## Configure Git-backed mesh memory backup
+
+1. Create a **private** empty repository on GitHub (or any Git remote).
+2. On the command host that owns `MESH_STORE_DB_PATH`, clone it to a dedicated directory (e.g. `/data/mesh-memory-git`): `git clone git@github.com:org/mesh-memory-backup.git /data/mesh-memory-git`.
+3. Install dependencies so export can open SQLite: `npm install better-sqlite3` in the Raise The OpenClaw repo (or use the same Node project you use for the Army server).
+4. Run once manually:  
+   `MESH_STORE_DB_PATH=/path/to/mesh-store.sqlite GITHUB_MESH_BACKUP_DIR=/data/mesh-memory-git node scripts/mesh-github-backup.js`  
+   Fix SSH or HTTPS auth until `git push` succeeds (`git push -u origin main` on first push if needed).
+5. Optional: narrow exports with `MESH_GIT_EXPORT_SCOPES` (default `mesh`) or `MESH_GIT_EXPORT_KEY_PREFIX` (e.g. `lessons_,intel:`).
+6. Add a **cron** job (see [docs/GITHUB_MESH_MEMORY_BACKUP.md](GITHUB_MESH_MEMORY_BACKUP.md)).
+
+Full reference: [docs/GITHUB_MESH_MEMORY_BACKUP.md](GITHUB_MESH_MEMORY_BACKUP.md).
+
+---
+
+## Point an edge node at the shared Git export
+
+1. On the edge gateway host, clone the **same private repo** (read-only deploy key or user credential).
+2. After each `git pull`, import into the local mesh cache:  
+   `MESH_GIT_IMPORT_DIR=/path/to/mesh-memory-git-clone OPENCLAW_HOME=~/.openclaw node /path/to/Raise-The-OpenClaw/scripts/mesh-git-import.js`
+3. Schedule `git pull` + import (e.g. daily cron). Agents read shared context from the local cache as usual.
+
+Import does **not** replace the SQLite store on the command host; it only updates `mesh-memory.json` and `mesh/skills/` on the edge node.
+
+See [docs/GITHUB_MESH_MEMORY_BACKUP.md](GITHUB_MESH_MEMORY_BACKUP.md).

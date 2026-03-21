@@ -47,6 +47,16 @@ Army memory keys follow conventions in [OPENCLAW_ARMY_OF_OPENCLAW.md §5a](OPENC
 
 **Search:** When the mesh store API is running, use `GET /mesh/memory?q=<query>` or `POST /mesh/query` for full-text search. Add `?mode=semantic` or `{ mode: 'semantic' }` for vector similarity search (requires Ollama or embedding API). Ranks can use a **search_memory** tool to find relevant lessons or intel before executing orders. See [mesh/store/README.md](mesh/store/README.md).
 
+### Shared memory via Git backup
+
+To **back up** the mesh store to a **private GitHub repo** and let **every Army edge node** (without SQLite) **pull** the same snapshot into local Phase 1 cache, use:
+
+- `scripts/mesh-git-export.js` — export from `MESH_STORE_DB_PATH` to JSON under `MESH_GIT_EXPORT_DIR`.
+- `scripts/mesh-github-backup.js` — export into a git clone at `GITHUB_MESH_BACKUP_DIR`, then commit and push.
+- `scripts/mesh-git-import.js` — after `git pull` on a node, merge into `OPENCLAW_HOME` with last-write-wins.
+
+Details, env vars, and cron examples: [docs/GITHUB_MESH_MEMORY_BACKUP.md](docs/GITHUB_MESH_MEMORY_BACKUP.md). Runbooks: [Configure Git-backed mesh memory backup](docs/RUNBOOKS.md#configure-git-backed-mesh-memory-backup), [Point an edge node at the shared Git export](docs/RUNBOOKS.md#point-an-edge-node-at-the-shared-git-export).
+
 ## API
 
 | Method | Path | Description |

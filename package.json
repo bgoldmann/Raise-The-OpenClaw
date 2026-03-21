@@ -4,12 +4,15 @@
   "description": "Curated recipes and reference implementations for OpenClaw mesh, Mission Control, bridge, and Army.",
   "private": true,
   "scripts": {
-    "test": "node --test test/mesh-messages.test.js test/mesh-cache.test.js test/bridge-ingest.test.js test/proxy-health.test.js test/army-server.test.js",
+    "test": "node --test test/mesh-messages.test.js test/mesh-cache.test.js test/bridge-ingest.test.js test/proxy-health.test.js test/army-server.test.js test/mesh-git-import.test.js",
     "serve:mc": "npx serve mission-control",
     "run:bridge": "node bridge/webhook-server.js 4077",
     "run:mesh-cli": "node scripts/mesh-cli.js",
     "run:lessons-daily": "node scripts/lessons-daily.js",
-    "run:vec-backfill": "node scripts/vec-backfill.js"
+    "run:vec-backfill": "node scripts/vec-backfill.js",
+    "run:mesh-git-export": "node scripts/mesh-git-export.js",
+    "run:mesh-github-backup": "node scripts/mesh-github-backup.js",
+    "run:mesh-git-import": "node scripts/mesh-git-import.js"
   },
   "engines": {
     "node": ">=18.0.0"

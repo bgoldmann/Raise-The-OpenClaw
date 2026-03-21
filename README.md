@@ -96,8 +96,9 @@ flowchart LR
 | **[federation-hub/](federation-hub/)** | `POST /federation/in`, `POST /federation/share`, outbound (store poll → external meshes), store-to-bridge, optional signing. Config: `config.example.json`. |
 | **[army/server.js](army/server.js)** | Registry (POST/GET/PATCH nodes, GET units), dispatcher (POST orders, resolve addressee, POST to ingest_url, failover). Optional `ARMY_AUTH_BEARER`, `ARMY_REGISTRY_TTL_SEC`, `GET /metrics`. Mission Control shows Army when proxy has `OPENCLAW_MC_ARMY_URL`. |
 | **[scripts/mesh-cli.js](scripts/mesh-cli.js)** | CLI: get/put/list memory and skills (local cache or `MESH_STORE_URL`). |
+| **[scripts/mesh-git-export.js](scripts/mesh-git-export.js)**, **[scripts/mesh-github-backup.js](scripts/mesh-github-backup.js)**, **[scripts/mesh-git-import.js](scripts/mesh-git-import.js)** | Export mesh store to JSON, push to a private Git repo, import into edge node cache ([docs/GITHUB_MESH_MEMORY_BACKUP.md](docs/GITHUB_MESH_MEMORY_BACKUP.md)). |
 
-**Run:** Node.js 18+; no extra deps for mesh/bridge. Proxy uses `ws`. Optional `better-sqlite3` for mesh store and Army. From repo root: `npm test`, `npm run serve:mc`, `npm run run:bridge`, `npm run run:mesh-cli`, `npm run run:lessons-daily` (daily lessons aggregation; set `MESH_STORE_DB_PATH`).
+**Run:** Node.js 18+; no extra deps for mesh/bridge. Proxy uses `ws`. Optional `better-sqlite3` for mesh store and Army. From repo root: `npm test`, `npm run serve:mc`, `npm run run:bridge`, `npm run run:mesh-cli`, `npm run run:lessons-daily` (daily lessons aggregation; set `MESH_STORE_DB_PATH`). Git backup: `npm run run:mesh-git-export`, `npm run run:mesh-github-backup`, `npm run run:mesh-git-import` (see [docs/GITHUB_MESH_MEMORY_BACKUP.md](docs/GITHUB_MESH_MEMORY_BACKUP.md)).
 
 ---
 
@@ -125,6 +126,7 @@ flowchart LR
 | [Deployment](DEPLOYMENT.md) | Docker Compose, Kubernetes, single-host. |
 | [Runbooks](docs/RUNBOOKS.md) | Add gateway, rotate token, recover store, Army runbooks. |
 | [30-day X tweet plan](docs/30_DAY_TWEET_PLAN.md) | Content plan and tweet drafts for X/Twitter. |
+| [Git / GitHub mesh memory backup](docs/GITHUB_MESH_MEMORY_BACKUP.md) | Export SQLite to JSON, push to a private repo, import into edge node cache (Army shared read-only memory). |
 
 ---
 
